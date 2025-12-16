@@ -1,0 +1,157 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { erpDb } from '@/lib/db';
+import { products, productCategories } from '@/lib/db/schema';
+import { requireErpAccess, hasPermission } from '@/lib/auth';
+import { eq, and, like, desc } from 'drizzle-orm';
+
+// GET /api/erp/inventory/products
+export async function GET(req: NextRequest) {
+  const { user, error } = await requireErpAccess(req);
+  if (error) return error;
+
+  // Check permissions
+  if (!hasPermission(user, 'inventory', 'view')) {
+    return NextResponse.json(
+      { error: 'No permission to view inventory' },
+      { status: 403 }
+    );
+  }
+
+  try {
+    const searchParams = req.nextUrl.searchParams;
+    const search = searchParams.get('search');
+    const categoryId = searchParams.get('categoryId');
+    const isActive = searchParams.get('isActive');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const offset = (page - 1) * limit;
+
+    // Build query conditions
+    const conditions = [eq(products.erpOrganizationId, user.erpOrganizationId)];
+    
+    if (search) {
+      conditions.push(like(products.name, `%${search}%`));
+    }
+    
+    if (categoryId) {
+      conditions.push(eq(products.productCategoryId, categoryId));
+    }
+    
+    if (isActive !== null) {
+      conditions.push(eq(products.isActive, isActive === 'true'));
+    }
+
+    const productsList = await erpDb.query.products.findMany({
+      where: and(...conditions),
+      with: {
+        category: true,
+      },
+      limit,
+      offset,
+      orderBy: [desc(products.createdAt)],
+    });
+
+    return NextResponse.json({
+      products: productsList,
+      pagination: {
+        page,
+        limit,
+        total: productsList.length,
+      },
+    });
+  } catch (err: any) {
+    console.error('Error fetching products:', err);
+    return NextResponse.json(
+      { error: 'Failed to fetch products' },
+      { status: 500 }
+    );
+  }
+}
+
+// POST /api/erp/inventory/products
+export async function POST(req: NextRequest) {
+  const { user, error } = await requireErpAccess(req, 'user');
+  if (error) return error;
+
+  if (!hasPermission(user, 'inventory', 'create')) {
+    return NextResponse.json(
+      { error: 'No permission to create products' },
+      { status: 403 }
+    );
+  }
+
+  try {
+    const body = await req.json();
+    const {
+      name,
+      sku,
+      barcode,
+      description,
+      productType,
+      trackingType,
+      productCategoryId,
+      costPrice,
+      salePrice,
+      reorderPoint,
+      reorderQuantity,
+      leadTimeDays,
+      imageUrl,
+      notes,
+    } = body;
+
+    // Validate required fields
+    if (!name || !sku || !productType) {
+      return NextResponse.json(
+        { error: 'Missing required fields: name, sku, productType' },
+        { status: 400 }
+      );
+    }
+
+    // Check if SKU already exists
+    const existing = await erpDb.query.products.findFirst({
+      where: and(
+        eq(products.erpOrganizationId, user.erpOrganizationId),
+        eq(products.sku, sku)
+      ),
+    });
+
+    if (existing) {
+      return NextResponse.json(
+        { error: 'Product with this SKU already exists' },
+        { status: 409 }
+      );
+    }
+
+    // Create product
+    const [newProduct] = await erpDb
+      .insert(products)
+      .values({
+        erpOrganizationId: user.erpOrganizationId,
+        name,
+        sku,
+        barcode,
+        description,
+        productType,
+        trackingType: trackingType || 'none',
+        productCategoryId,
+        costPrice: costPrice || '0',
+        salePrice: salePrice || '0',
+        reorderPoint: reorderPoint || '0',
+        reorderQuantity: reorderQuantity || '0',
+        leadTimeDays: leadTimeDays || 0,
+        imageUrl,
+        notes,
+        createdBy: user.id,
+        isActive: true,
+      })
+      .returning();
+
+    return NextResponse.json({ product: newProduct }, { status: 201 });
+  } catch (err: any) {
+    console.error('Error creating product:', err);
+    return NextResponse.json(
+      { error: 'Failed to create product' },
+      { status: 500 }
+    );
+  }
+}
