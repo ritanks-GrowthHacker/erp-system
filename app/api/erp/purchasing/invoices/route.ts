@@ -3,6 +3,7 @@ import { erpDb } from '@/lib/db';
 import { vendorInvoices, vendorInvoiceLines } from '@/lib/db/schema';
 import { requireErpAccess, hasPermission } from '@/lib/auth';
 import { eq, and, sql, desc } from 'drizzle-orm';
+import { handleDatabaseError, logDatabaseError } from '@/lib/db/error-handler';
 
 // GET /api/erp/purchasing/invoices
 export async function GET(req: NextRequest) {
@@ -39,12 +40,10 @@ export async function GET(req: NextRequest) {
     `);
 
     return NextResponse.json({ invoices: Array.from(result) });
-  } catch (err: any) {
-    console.error('Error fetching invoices:', err);
-    return NextResponse.json(
-      { error: 'Failed to fetch invoices' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Fetching invoices', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }
 
@@ -145,11 +144,9 @@ export async function POST(req: NextRequest) {
       invoice: invoiceResult[0],
       message: 'Invoice created successfully'
     });
-  } catch (err: any) {
-    console.error('Error creating invoice:', err);
-    return NextResponse.json(
-      { error: 'Failed to create invoice' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Creating invoice', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }

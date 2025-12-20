@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { erpDb } from '@/lib/db';
 import { requireErpAccess, hasPermission } from '@/lib/auth';
-import { sql, eq, and } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
+import { handleDatabaseError, logDatabaseError } from '@/lib/db/error-handler';
 
 // GET /api/erp/inventory/alerts
 export async function GET(req: NextRequest) {
@@ -65,56 +66,9 @@ export async function GET(req: NextRequest) {
       alerts: Array.from(alertsResult),
       counts: Array.from(alertCountsResult),
     });
-  } catch (err: any) {
-    console.error('Error fetching stock alerts:', err);
-    return NextResponse.json(
-      { error: 'Failed to fetch stock alerts' },
-      { status: 500 }
-    );
-  }
-}
-
-// POST /api/erp/inventory/alerts/[id]/resolve
-export async function POST(
-  req: NextRequest,
-  context: { params: { id: string } }
-) {
-  const { params } = context;
-  const { user, error } = await requireErpAccess(req, 'user');
-  if (error) return error;
-
-  if (!hasPermission(user, 'inventory', 'edit')) {
-    return NextResponse.json(
-      { error: 'No permission to resolve alerts' },
-      { status: 403 }
-    );
-  }
-
-  try {
-    const result = await erpDb.execute(sql`
-      UPDATE stock_alerts
-      SET 
-        is_resolved = true,
-        resolved_at = NOW(),
-        resolved_by = ${user.id}
-      WHERE id = ${params.id}
-        AND erp_organization_id = ${user.erpOrganizationId}
-      RETURNING *
-    `);
-
-    if (result.length === 0) {
-      return NextResponse.json(
-        { error: 'Alert not found' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({ alert: result[0] });
-  } catch (err: any) {
-    console.error('Error resolving alert:', err);
-    return NextResponse.json(
-      { error: 'Failed to resolve alert' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Fetching stock alerts', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }

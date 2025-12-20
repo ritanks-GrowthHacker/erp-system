@@ -3,6 +3,7 @@ import { erpDb } from '@/lib/db';
 import { goodsReceipts, goodsReceiptLines } from '@/lib/db/schema';
 import { requireErpAccess, hasPermission } from '@/lib/auth';
 import { eq, and, sql, desc } from 'drizzle-orm';
+import { handleDatabaseError, logDatabaseError } from '@/lib/db/error-handler';
 
 // GET /api/erp/purchasing/goods-receipts
 export async function GET(req: NextRequest) {
@@ -44,12 +45,10 @@ export async function GET(req: NextRequest) {
     `);
 
     return NextResponse.json({ goodsReceipts: Array.from(result) });
-  } catch (err: any) {
-    console.error('Error fetching goods receipts:', err);
-    return NextResponse.json(
-      { error: 'Failed to fetch goods receipts' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Fetching goods receipts', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }
 
@@ -137,12 +136,10 @@ export async function POST(req: NextRequest) {
       goodsReceipt: grResult[0],
       message: 'Goods receipt created successfully'
     });
-  } catch (err: any) {
-    console.error('Error creating goods receipt:', err);
-    return NextResponse.json(
-      { error: 'Failed to create goods receipt' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Creating goods receipt', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }
 
@@ -192,11 +189,9 @@ export async function PUT(req: NextRequest) {
       goodsReceipt: result[0],
       message: 'Goods receipt updated successfully'
     });
-  } catch (err: any) {
-    console.error('Error updating goods receipt:', err);
-    return NextResponse.json(
-      { error: 'Failed to update goods receipt' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Updating goods receipt', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }

@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { getAuthToken } from '@/lib/utils/token';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
+import { Eye } from 'lucide-react';
 
 interface StockMovement {
   id: string;
@@ -71,6 +71,18 @@ export default function MovementsPage() {
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
+  const getMovementTypeColor = (type: string) => {
+    const colors: Record<string, string> = {
+      receipt: 'bg-blue-100 text-blue-800',
+      delivery: 'bg-orange-100 text-orange-800',
+      internal_transfer: 'bg-purple-100 text-purple-800',
+      adjustment: 'bg-yellow-100 text-yellow-800',
+      return: 'bg-indigo-100 text-indigo-800',
+      scrap: 'bg-red-100 text-red-800',
+    };
+    return colors[type] || 'bg-gray-100 text-gray-800';
+  };
+
   const getMovementTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
       receipt: '📥 Receipt',
@@ -92,17 +104,23 @@ export default function MovementsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Stock Movements</h1>
-        <Button onClick={() => (window.location.href = '/erp/inventory/movements/new')}>
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-semibold text-gray-900">Stock Movements</h2>
+          <p className="text-sm text-gray-500 mt-1">Track inventory transfers and changes</p>
+        </div>
+        <button 
+          onClick={() => (window.location.href = '/erp/inventory/movements/new')}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+        >
           + New Movement
-        </Button>
+        </button>
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardContent className="pt-6">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
+        <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">
@@ -139,95 +157,91 @@ export default function MovementsPage() {
               </select>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Movements List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Movements ({movements.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {movements.length === 0 ? (
-              <div className="text-center text-gray-500 py-8">
-                No stock movements found
-              </div>
-            ) : (
-              movements.map((movement) => (
-                <div
-                  key={movement.id}
-                  className="border rounded-lg p-4 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg font-semibold">
-                          {getMovementTypeLabel(movement.movementType)}
-                        </span>
-                        <span
-                          className={`px-2 py-1 text-xs rounded ${getStatusColor(
-                            movement.status
-                          )}`}
-                        >
-                          {movement.status.toUpperCase()}
-                        </span>
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
+                <TableHead>Date</TableHead>
+                <TableHead>Product(s)</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead className="text-right">Quantity</TableHead>
+                <TableHead>Reference</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {movements.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                    No stock movements found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                movements.map((movement) => (
+                  <TableRow key={movement.id} className="hover:bg-gray-50/50">
+                    <TableCell>
+                      <div className="text-sm">
+                        {new Date(movement.createdAt).toLocaleDateString()}
                       </div>
-                      <div className="text-sm text-gray-600 mt-1">
-                        Created: {new Date(movement.createdAt).toLocaleString()}
+                      <div className="text-xs text-gray-500">
+                        {new Date(movement.createdAt).toLocaleTimeString()}
                       </div>
-                      {movement.scheduledDate && (
-                        <div className="text-sm text-gray-600">
-                          Scheduled: {new Date(movement.scheduledDate).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm font-medium">
+                        {movement.lines?.[0]?.product.name || 'N/A'}
+                      </div>
+                      {movement.lines && movement.lines.length > 1 && (
+                        <div className="text-xs text-gray-500">
+                          +{movement.lines.length - 1} more item(s)
                         </div>
                       )}
-                    </div>
-                    <button
-                      onClick={() =>
-                        (window.location.href = `/erp/inventory/movements/${movement.id}`)
-                      }
-                      className="text-blue-600 hover:text-blue-800 text-sm"
-                    >
-                      View Details →
-                    </button>
-                  </div>
-
-                  {movement.notes && (
-                    <div className="text-sm text-gray-700 mb-3">
-                      📝 {movement.notes}
-                    </div>
-                  )}
-
-                  <div className="border-t pt-3">
-                    <div className="text-sm font-medium mb-2">
-                      Products ({movement.lines?.length || 0}):
-                    </div>
-                    <div className="space-y-1">
-                      {movement.lines?.slice(0, 3).map((line, idx) => (
-                        <div key={idx} className="text-sm text-gray-600 flex justify-between">
-                          <span>
-                            {line.product.name} ({line.product.sku})
-                          </span>
-                          <span>
-                            Qty: {line.quantityOrdered}
-                            {movement.status === 'completed' &&
-                              ` (Processed: ${line.quantityProcessed})`}
-                          </span>
-                        </div>
-                      ))}
-                      {movement.lines && movement.lines.length > 3 && (
-                        <div className="text-sm text-gray-500">
-                          + {movement.lines.length - 3} more items
+                    </TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-1 text-xs rounded ${getMovementTypeColor(movement.movementType)}`}>
+                        {getMovementTypeLabel(movement.movementType)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {movement.lines?.[0]?.quantityOrdered || '0'}
+                      {movement.status === 'completed' && movement.lines?.[0]?.quantityProcessed && (
+                        <div className="text-xs text-gray-500">
+                          ({movement.lines[0].quantityProcessed} processed)
                         </div>
                       )}
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm text-gray-600">
+                        {movement.notes || '-'}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-1 text-xs rounded ${getStatusColor(movement.status)}`}>
+                        {movement.status.toUpperCase()}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <button
+                        onClick={() => (window.location.href = `/erp/inventory/movements/${movement.id}`)}
+                        className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      >
+                        <Eye className="w-4 h-4" />
+                        View
+                      </button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
     </div>
   );
 }

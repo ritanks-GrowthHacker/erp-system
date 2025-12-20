@@ -158,126 +158,134 @@ export default function SuppliersPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Suppliers</h1>
-          <p className="text-gray-500 mt-1">Manage your vendor directory</p>
+          <h2 className="text-2xl font-semibold text-gray-900">Suppliers</h2>
+          <p className="text-sm text-gray-500 mt-1">Manage your vendor directory</p>
         </div>
-        <Button onClick={() => setShowCreateModal(true)}>
+        <button 
+          onClick={() => setShowCreateModal(true)}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+        >
           + Add Supplier
-        </Button>
+        </button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{loading ? '...' : stats.total}</div>
-            <div className="text-sm text-gray-500">Total Suppliers</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-green-600">{loading ? '...' : stats.active}</div>
-            <div className="text-sm text-gray-500">Active Suppliers</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-gray-400">{loading ? '...' : stats.inactive}</div>
-            <div className="text-sm text-gray-500">Inactive Suppliers</div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-2xl font-bold text-gray-900">{loading ? '...' : stats.total}</div>
+          <div className="text-sm font-medium text-gray-600 mt-1">Total Suppliers</div>
+        </div>
+        
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-2xl font-bold text-green-600">{loading ? '...' : stats.active}</div>
+          <div className="text-sm font-medium text-gray-600 mt-1">Active Suppliers</div>
+        </div>
+        
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-2xl font-bold text-gray-400">{loading ? '...' : stats.inactive}</div>
+          <div className="text-sm font-medium text-gray-600 mt-1">Inactive Suppliers</div>
+        </div>
       </div>
 
       {/* Suppliers Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>All Suppliers</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h3 className="text-base font-semibold text-gray-900">All Suppliers</h3>
+        </div>
+        <div className="overflow-x-auto">
           {loading ? (
-            <div className="text-center py-8 text-gray-500">Loading suppliers...</div>
+            <div className="text-center py-12 text-gray-500">Loading suppliers...</div>
           ) : suppliers.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-12 text-gray-500">
               No suppliers found. Click "Add Supplier" to create one.
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4">Code</th>
-                    <th className="text-left py-3 px-4">Name</th>
-                    <th className="text-left py-3 px-4">Contact</th>
-                    <th className="text-left py-3 px-4">Location</th>
-                    <th className="text-left py-3 px-4">Payment Terms</th>
-                    <th className="text-left py-3 px-4">Status</th>
-                    <th className="text-left py-3 px-4">Actions</th>
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Code</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Contact</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Location</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Payment Terms</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {suppliers.map((supplier) => (
+                  <tr key={supplier.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="font-mono text-sm font-medium text-gray-900">{supplier.code || '—'}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="font-medium text-gray-900">{supplier.name}</div>
+                      <div className="text-sm text-gray-500">{supplier.taxId || '—'}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{supplier.email || '—'}</div>
+                      <div className="text-sm text-gray-500">{supplier.phone || '—'}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {supplier.city && supplier.state
+                          ? `${supplier.city}, ${supplier.state}`
+                          : supplier.city || supplier.state || '—'}
+                      </div>
+                      <div className="text-sm text-gray-500">{supplier.country || '—'}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{supplier.paymentTerms} days</div>
+                      <div className="text-sm text-gray-500">{supplier.currencyCode}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2.5 py-0.5 text-xs font-medium rounded-full ${
+                        supplier.isActive
+                          ? 'bg-green-50 text-green-700 border border-green-200'
+                          : 'bg-gray-50 text-gray-700 border border-gray-200'
+                      }`}>
+                        {supplier.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <div className="flex gap-2">
+                        <Link href={`/erp/purchasing/suppliers/${supplier.id}`}>
+                          <button className="text-blue-600 hover:text-blue-700 font-medium">View</button>
+                        </Link>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {suppliers.map((supplier) => (
-                    <tr key={supplier.id} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4">
-                        <div className="font-mono text-sm">{supplier.code || '—'}</div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="font-medium">{supplier.name}</div>
-                        <div className="text-sm text-gray-500">{supplier.taxId || '—'}</div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="text-sm">{supplier.email || '—'}</div>
-                        <div className="text-sm text-gray-500">{supplier.phone || '—'}</div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="text-sm">
-                          {supplier.city && supplier.state
-                            ? `${supplier.city}, ${supplier.state}`
-                            : supplier.city || supplier.state || '—'}
-                        </div>
-                        <div className="text-sm text-gray-500">{supplier.country || '—'}</div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="text-sm">{supplier.paymentTerms} days</div>
-                        <div className="text-sm text-gray-500">{supplier.currencyCode}</div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          supplier.isActive
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {supplier.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex gap-2">
-                          <Button variant="secondary" size="sm">View</Button>
-                          <Button variant="secondary" size="sm">Edit</Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Create Supplier Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold mb-4">Add New Supplier</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center rounded-t-xl">
+              <h2 className="text-xl font-semibold text-gray-900">Add New Supplier</h2>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
               {/* Basic Information */}
-              <div className="border-b pb-4">
-                <h3 className="font-semibold mb-3">Basic Information</h3>
+              <div className="border-b border-gray-200 pb-4">
+                <h3 className="font-semibold text-gray-900 mb-3">Basic Information</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">

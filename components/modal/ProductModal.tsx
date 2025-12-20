@@ -1,0 +1,305 @@
+'use client';
+
+import React, { useEffect } from 'react';
+import { Input, Select, Textarea } from '@/components/ui/form';
+import { 
+  X, 
+  Package, 
+  Tag, 
+  IndianRupee, 
+  BarChart3, 
+  Image as ImageIcon, 
+  Plus, 
+  Trash2, 
+  UploadCloud,
+  Info
+} from 'lucide-react';
+
+interface ProductModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (e: React.FormEvent) => void;
+  formData: {
+    name: string;
+    sku: string;
+    description: string;
+    productType: string;
+    trackingType: string;
+    costPrice: string;
+    salePrice: string;
+    reorderPoint: string;
+    reorderQuantity: string;
+    imageUrl: string;
+  };
+  setFormData: (data: any) => void;
+  editingProduct: any;
+  generatingSKU: boolean;
+  onGenerateSKU: () => void;
+  imagePreview: string | null;
+  onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onRemoveImage: () => void;
+}
+
+export default function ProductModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  formData,
+  setFormData,
+  editingProduct,
+  generatingSKU,
+  onGenerateSKU,
+  imagePreview,
+  onImageUpload,
+  onRemoveImage,
+}: ProductModalProps) {
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div 
+      className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="bg-white rounded-xl max-w-4xl w-full mx-auto shadow-2xl flex flex-col max-h-[92vh] overflow-hidden border border-slate-200">
+        
+        {/* Header */}
+        <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100 bg-slate-50/50 sticky top-0 z-20">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-600 p-2 rounded-lg text-white shadow-md shadow-blue-100">
+              <Package size={20} />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-slate-900 leading-none">
+                {editingProduct ? 'Edit Product' : 'Add New Product'}
+              </h3>
+              <p className="text-sm text-slate-500 mt-1">Configure your product specifications and inventory limits.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+          <form id="product-form" onSubmit={onSubmit} className="space-y-8">
+            
+            {/* Basic Information Section */}
+            <section className="space-y-4">
+              <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-100">
+                <Tag size={18} className="text-blue-600" />
+                <h4 className="font-bold text-slate-800 uppercase tracking-wider text-xs italic">Basic Information</h4>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Input
+                  label="Product Name *"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g. Wireless Keyboard K290"
+                  required
+                />
+                
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-semibold text-slate-700">SKU / Product Code *</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={formData.sku}
+                      readOnly
+                      placeholder="Click generate"
+                      className="flex-1 px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-blue-700 font-mono text-sm outline-none cursor-not-allowed"
+                    />
+                    <button
+                      type="button"
+                      onClick={onGenerateSKU}
+                      disabled={!formData.name.trim() || generatingSKU}
+                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-semibold transition-all disabled:opacity-40 whitespace-nowrap active:scale-95 shadow-sm"
+                    >
+                      {generatingSKU ? '...' : 'Generate'}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-400 italic font-medium uppercase tracking-tight">Enter name first to generate a unique SKU</p>
+                </div>
+
+                <Select
+                  label="Product Type *"
+                  value={formData.productType}
+                  onChange={(e) => setFormData({ ...formData, productType: e.target.value })}
+                  options={[
+                    { value: 'storable', label: 'Storable Product' },
+                    { value: 'consumable', label: 'Consumable' },
+                    { value: 'service', label: 'Service' },
+                  ]}
+                />
+
+                <Select
+                  label="Tracking Method"
+                  value={formData.trackingType}
+                  onChange={(e) => setFormData({ ...formData, trackingType: e.target.value })}
+                  options={[
+                    { value: 'none', label: 'No Tracking' },
+                    { value: 'serial', label: 'By Serial Number' },
+                    { value: 'lot', label: 'By Lot Number' },
+                  ]}
+                />
+              </div>
+            </section>
+
+            {/* Pricing & Inventory Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Pricing Information */}
+              <section className="bg-emerald-50/40 p-5 rounded-xl border border-emerald-100/50">
+                <div className="flex items-center gap-2 mb-4">
+                  <IndianRupee size={18} className="text-emerald-600" />
+                  <h4 className="font-bold text-emerald-900 uppercase tracking-wider text-xs">Pricing (INR)</h4>
+                </div>
+                <div className="space-y-4">
+                  <Input
+                    label="Cost Price"
+                    type="number"
+                    step="0.01"
+                    value={formData.costPrice}
+                    onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
+                    placeholder="0.00"
+                  />
+                  <Input
+                    label="Sale Price"
+                    type="number"
+                    step="0.01"
+                    value={formData.salePrice}
+                    onChange={(e) => setFormData({ ...formData, salePrice: e.target.value })}
+                    placeholder="0.00"
+                  />
+                </div>
+              </section>
+
+              {/* Inventory Management */}
+              <section className="bg-amber-50/40 p-5 rounded-xl border border-amber-100/50">
+                <div className="flex items-center gap-2 mb-4">
+                  <BarChart3 size={18} className="text-amber-600" />
+                  <h4 className="font-bold text-amber-900 uppercase tracking-wider text-xs">Stock Control</h4>
+                </div>
+                <div className="space-y-4">
+                  <Input
+                    label="Reorder Point"
+                    type="number"
+                    value={formData.reorderPoint}
+                    onChange={(e) => setFormData({ ...formData, reorderPoint: e.target.value })}
+                    placeholder="Min stock level"
+                  />
+                  <Input
+                    label="Reorder Quantity"
+                    type="number"
+                    value={formData.reorderQuantity}
+                    onChange={(e) => setFormData({ ...formData, reorderQuantity: e.target.value })}
+                    placeholder="Order amount"
+                  />
+                </div>
+              </section>
+            </div>
+
+            {/* Media Upload Section */}
+            <section>
+              <div className="flex items-center gap-2 mb-5 pb-2 border-b border-slate-100">
+                <ImageIcon size={18} className="text-blue-600" />
+                <h4 className="font-bold text-slate-800 uppercase tracking-wider text-xs italic">Product Media</h4>
+              </div>
+              
+              <div className="mt-2">
+                {imagePreview ? (
+                  <div className="flex items-center gap-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="relative h-32 w-32 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white group shadow-sm">
+                      <img src={imagePreview} alt="Preview" className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                         <button
+                          type="button"
+                          onClick={onRemoveImage}
+                          className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                          title="Remove Image"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-sm font-bold text-slate-700">Image uploaded</p>
+                        <p className="text-xs text-slate-500">Preview looks great! Want to change it?</p>
+                      </div>
+                      <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-all shadow-sm">
+                        <Plus size={14} />
+                        Upload New
+                        <input type="file" accept="image/*" onChange={onImageUpload} className="hidden" />
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center w-full h-44 border-2 border-dashed border-slate-200 rounded-xl hover:border-blue-400 hover:bg-blue-50/30 transition-all cursor-pointer group bg-slate-50/50">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <div className="p-4 bg-white rounded-full group-hover:bg-blue-100 transition-colors mb-4 shadow-sm">
+                        <UploadCloud className="w-6 h-6 text-slate-400 group-hover:text-blue-600" />
+                      </div>
+                      <p className="text-sm text-slate-700 font-semibold italic">Click to upload product image</p>
+                      <p className="text-xs text-slate-400 mt-2">Supports JPG, PNG or WEBP (Max 5MB)</p>
+                    </div>
+                    <input type="file" accept="image/*" onChange={onImageUpload} className="hidden" />
+                  </label>
+                )}
+              </div>
+            </section>
+
+            {/* Description Section */}
+            <section className="space-y-4">
+              <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-100">
+                <Info size={18} className="text-blue-600" />
+                <h4 className="font-bold text-slate-800 uppercase tracking-wider text-xs italic">Additional Details</h4>
+              </div>
+              <Textarea
+                label="Product Description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Write about product features, technical specs, or warranty info..."
+                rows={4}
+                className="focus:ring-2 focus:ring-blue-500 resize-none"
+              />
+            </section>
+          </form>
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-slate-100 bg-white flex flex-col sm:flex-row justify-end gap-3 px-6 sticky bottom-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-6 py-2.5 rounded-lg border border-slate-300 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-all active:scale-95"
+          >
+            Cancel
+          </button>
+          <button
+            form="product-form"
+            type="submit"
+            className="px-8 py-2.5 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95"
+          >
+            {editingProduct ? 'Update Product' : 'Create Product'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

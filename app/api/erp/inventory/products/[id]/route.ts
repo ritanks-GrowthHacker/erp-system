@@ -5,9 +5,9 @@ import { requireErpAccess, hasPermission } from '@/lib/auth';
 import { eq, and } from 'drizzle-orm';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 // GET /api/erp/inventory/products/[id]
@@ -23,9 +23,18 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   }
 
   try {
+    const { id } = await params;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Product ID is required' },
+        { status: 400 }
+      );
+    }
+
     const product = await erpDb.query.products.findFirst({
       where: and(
-        eq(products.id, params.id),
+        eq(products.id, id),
         eq(products.erpOrganizationId, user.erpOrganizationId)
       ),
       with: {
@@ -70,6 +79,15 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
   }
 
   try {
+    const { id } = await params;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Product ID is required' },
+        { status: 400 }
+      );
+    }
+
     const body = await req.json();
     const {
       name,
@@ -89,7 +107,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
     // Check if product exists
     const existing = await erpDb.query.products.findFirst({
       where: and(
-        eq(products.id, params.id),
+        eq(products.id, id),
         eq(products.erpOrganizationId, user.erpOrganizationId)
       ),
     });
@@ -120,7 +138,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
         updatedBy: user.id,
         updatedAt: new Date(),
       })
-      .where(eq(products.id, params.id))
+      .where(eq(products.id, id))
       .returning();
 
     return NextResponse.json({ product: updatedProduct });
@@ -146,10 +164,19 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
   }
 
   try {
+    const { id } = await params;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Product ID is required' },
+        { status: 400 }
+      );
+    }
+
     // Check if product exists
     const existing = await erpDb.query.products.findFirst({
       where: and(
-        eq(products.id, params.id),
+        eq(products.id, id),
         eq(products.erpOrganizationId, user.erpOrganizationId)
       ),
     });
@@ -169,7 +196,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
         updatedBy: user.id,
         updatedAt: new Date(),
       })
-      .where(eq(products.id, params.id));
+      .where(eq(products.id, id));
 
     return NextResponse.json({ message: 'Product deleted successfully' });
   } catch (err: any) {

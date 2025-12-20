@@ -3,6 +3,7 @@ import { erpDb } from '@/lib/db';
 import { customers } from '@/lib/db/schema';
 import { requireErpAccess, hasPermission } from '@/lib/auth';
 import { eq, and, like } from 'drizzle-orm';
+import { handleDatabaseError, logDatabaseError } from '@/lib/db/error-handler';
 
 // GET /api/erp/sales/customers
 export async function GET(req: NextRequest) {
@@ -39,12 +40,10 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({ customers: customersList });
-  } catch (err: any) {
-    console.error('Error fetching customers:', err);
-    return NextResponse.json(
-      { error: 'Failed to fetch customers' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Fetching customers', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }
 
@@ -132,11 +131,9 @@ export async function POST(req: NextRequest) {
       .returning();
 
     return NextResponse.json({ customer: newCustomer }, { status: 201 });
-  } catch (err: any) {
-    console.error('Error creating customer:', err);
-    return NextResponse.json(
-      { error: 'Failed to create customer' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Creating customer', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }

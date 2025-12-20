@@ -3,6 +3,7 @@ import { erpDb } from '@/lib/db';
 import { stockAdjustments, stockAdjustmentLines, stockLevels } from '@/lib/db/schema';
 import { requireErpAccess, hasPermission } from '@/lib/auth';
 import { eq, and, desc } from 'drizzle-orm';
+import { handleDatabaseError, logDatabaseError } from '@/lib/db/error-handler';
 
 // GET /api/erp/inventory/adjustments
 export async function GET(req: NextRequest) {
@@ -50,12 +51,10 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({ adjustments });
-  } catch (err: any) {
-    console.error('Error fetching stock adjustments:', err);
-    return NextResponse.json(
-      { error: 'Failed to fetch stock adjustments' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Fetching stock adjustments', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }
 
@@ -124,11 +123,9 @@ export async function POST(req: NextRequest) {
       adjustment: newAdjustment,
       lines: adjustmentLines,
     }, { status: 201 });
-  } catch (err: any) {
-    console.error('Error creating stock adjustment:', err);
-    return NextResponse.json(
-      { error: 'Failed to create stock adjustment' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Creating stock adjustment', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }

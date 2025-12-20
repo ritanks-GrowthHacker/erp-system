@@ -7,8 +7,9 @@ import { eq, and } from 'drizzle-orm';
 // GET /api/erp/inventory/movements/[id]
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const { user, error } = await requireErpAccess(req);
   if (error) return error;
 
@@ -22,7 +23,7 @@ export async function GET(
   try {
     const movement = await erpDb.query.stockMovements.findFirst({
       where: and(
-        eq(stockMovements.id, params.id),
+        eq(stockMovements.id, id),
         eq(stockMovements.erpOrganizationId, user.erpOrganizationId)
       ),
       with: {
@@ -55,8 +56,9 @@ export async function GET(
 // PUT /api/erp/inventory/movements/[id]
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const { user, error } = await requireErpAccess(req, 'user');
   if (error) return error;
 
@@ -74,7 +76,7 @@ export async function PUT(
     // Check if movement exists
     const existing = await erpDb.query.stockMovements.findFirst({
       where: and(
-        eq(stockMovements.id, params.id),
+        eq(stockMovements.id, id),
         eq(stockMovements.erpOrganizationId, user.erpOrganizationId)
       ),
     });
@@ -104,7 +106,7 @@ export async function PUT(
         updatedBy: user.id,
         updatedAt: new Date(),
       })
-      .where(eq(stockMovements.id, params.id))
+      .where(eq(stockMovements.id, id))
       .returning();
 
     // If status changed to completed, update quantity processed if provided
@@ -133,8 +135,9 @@ export async function PUT(
 // DELETE /api/erp/inventory/movements/[id]
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const { user, error } = await requireErpAccess(req, 'manager');
   if (error) return error;
 
@@ -148,7 +151,7 @@ export async function DELETE(
   try {
     const existing = await erpDb.query.stockMovements.findFirst({
       where: and(
-        eq(stockMovements.id, params.id),
+        eq(stockMovements.id, id),
         eq(stockMovements.erpOrganizationId, user.erpOrganizationId)
       ),
     });
@@ -170,7 +173,7 @@ export async function DELETE(
 
     await erpDb
       .delete(stockMovements)
-      .where(eq(stockMovements.id, params.id));
+      .where(eq(stockMovements.id, id));
 
     return NextResponse.json({ message: 'Stock movement deleted successfully' });
   } catch (err: any) {

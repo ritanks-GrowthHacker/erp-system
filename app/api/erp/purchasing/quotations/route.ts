@@ -3,6 +3,7 @@ import { erpDb } from '@/lib/db';
 import { supplierQuotations, quotationLines } from '@/lib/db/schema';
 import { requireErpAccess, hasPermission } from '@/lib/auth';
 import { eq, and, desc, sql } from 'drizzle-orm';
+import { handleDatabaseError, logDatabaseError } from '@/lib/db/error-handler';
 
 // GET /api/erp/purchasing/quotations
 export async function GET(req: NextRequest) {
@@ -46,12 +47,10 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({ quotations });
-  } catch (err: any) {
-    console.error('Error fetching quotations:', err);
-    return NextResponse.json(
-      { error: 'Failed to fetch quotations' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Fetching quotations', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }
 
@@ -163,12 +162,10 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ quotation: newQuotation }, { status: 201 });
-  } catch (err: any) {
-    console.error('Error creating quotation:', err);
-    return NextResponse.json(
-      { error: 'Failed to create quotation' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Creating quotation', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }
 
@@ -205,11 +202,9 @@ export async function PUT(req: NextRequest) {
       );
 
     return NextResponse.json({ message: 'Quotation updated successfully' });
-  } catch (err: any) {
-    console.error('Error updating quotation:', err);
-    return NextResponse.json(
-      { error: 'Failed to update quotation' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Updating quotation', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }

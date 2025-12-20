@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { getAuthToken } from '@/lib/utils/token';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 
 interface StockLevel {
   id: string;
@@ -187,27 +186,36 @@ export default function StockLevelsPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Stock Levels</h1>
         <div className="flex gap-2">
-          <Button onClick={() => setShowAssignForm(true)} variant="primary">
+          <button
+            onClick={() => setShowAssignForm(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+          >
             + Assign Product to Warehouse
-          </Button>
-          <Button onClick={() => (window.location.href = '/erp/inventory/adjustments')}>
+          </button>
+          <button
+            onClick={() => (window.location.href = '/erp/inventory/adjustments')}
+            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium transition-colors"
+          >
             ✏️ Stock Adjustment
-          </Button>
+          </button>
         </div>
       </div>
 
       {/* Assign Stock Form Modal */}
       {showAssignForm && (
-        <Card className="border-blue-500">
-          <CardHeader>
+        <div className="bg-white rounded-xl border-2 border-blue-500 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex justify-between items-center">
-              <CardTitle>Assign Product to Warehouse</CardTitle>
-              <Button onClick={() => setShowAssignForm(false)} variant="ghost">
+              <h3 className="text-base font-semibold text-gray-900">Assign Product to Warehouse</h3>
+              <button
+                onClick={() => setShowAssignForm(false)}
+                className="text-gray-400 hover:text-gray-600 text-xl font-bold"
+              >
                 ✕
-              </Button>
+              </button>
             </div>
-          </CardHeader>
-          <CardContent>
+          </div>
+          <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Product*</label>
@@ -254,18 +262,21 @@ export default function StockLevelsPage() {
               </div>
 
               <div className="md:col-span-2">
-                <Button onClick={handleAssignStock} variant="primary">
+                <button
+                  onClick={handleAssignStock}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                >
                   Assign Stock
-                </Button>
+                </button>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Filters */}
-      <Card>
-        <CardContent className="pt-6">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">
@@ -308,122 +319,104 @@ export default function StockLevelsPage() {
               </label>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{filteredStockLevels.length}</div>
-            <p className="text-sm text-gray-600">Total Items</p>
-          </CardContent>
-        </Card>
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden p-6">
+          <div className="text-2xl font-bold">{filteredStockLevels.length}</div>
+          <p className="text-sm text-gray-600">Total Items</p>
+        </div>
 
-        <Card className="border-green-300 bg-green-50">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-green-700">
-              {
-                filteredStockLevels.filter((l) => {
-                  const avail = parseFloat(l.quantityOnHand) - parseFloat(l.quantityReserved);
-                  return avail > parseFloat(l.product.reorderPoint || '0');
-                }).length
-              }
-            </div>
-            <p className="text-sm text-green-600">In Stock</p>
-          </CardContent>
-        </Card>
+        <div className="bg-green-50 rounded-xl border border-green-300 overflow-hidden p-6">
+          <div className="text-2xl font-bold text-green-700">
+            {
+              filteredStockLevels.filter((l) => {
+                const avail = parseFloat(l.quantityOnHand) - parseFloat(l.quantityReserved);
+                return avail > parseFloat(l.product.reorderPoint || '0');
+              }).length
+            }
+          </div>
+          <p className="text-sm text-green-600">In Stock</p>
+        </div>
 
-        <Card className="border-yellow-300 bg-yellow-50">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-yellow-700">
-              {
-                filteredStockLevels.filter((l) => {
-                  const avail = parseFloat(l.quantityOnHand) - parseFloat(l.quantityReserved);
-                  const reorder = parseFloat(l.product.reorderPoint || '0');
-                  return avail > 0 && avail <= reorder;
-                }).length
-              }
-            </div>
-            <p className="text-sm text-yellow-600">Low Stock</p>
-          </CardContent>
-        </Card>
+        <div className="bg-yellow-50 rounded-xl border border-yellow-300 overflow-hidden p-6">
+          <div className="text-2xl font-bold text-yellow-700">
+            {
+              filteredStockLevels.filter((l) => {
+                const avail = parseFloat(l.quantityOnHand) - parseFloat(l.quantityReserved);
+                const reorder = parseFloat(l.product.reorderPoint || '0');
+                return avail > 0 && avail <= reorder;
+              }).length
+            }
+          </div>
+          <p className="text-sm text-yellow-600">Low Stock</p>
+        </div>
 
-        <Card className="border-red-300 bg-red-50">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-red-700">
-              {
-                filteredStockLevels.filter((l) => {
-                  const avail = parseFloat(l.quantityOnHand) - parseFloat(l.quantityReserved);
-                  return avail <= 0;
-                }).length
-              }
-            </div>
-            <p className="text-sm text-red-600">Out of Stock</p>
-          </CardContent>
-        </Card>
+        <div className="bg-red-50 rounded-xl border border-red-300 overflow-hidden p-6">
+          <div className="text-2xl font-bold text-red-700">
+            {
+              filteredStockLevels.filter((l) => {
+                const avail = parseFloat(l.quantityOnHand) - parseFloat(l.quantityReserved);
+                return avail <= 0;
+              }).length
+            }
+          </div>
+          <p className="text-sm text-red-600">Out of Stock</p>
+        </div>
       </div>
 
       {/* Stock Levels Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Stock Items ({filteredStockLevels.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th className="px-4 py-2 text-left text-sm font-semibold">Product</th>
-                  <th className="px-4 py-2 text-left text-sm font-semibold">SKU</th>
-                  <th className="px-4 py-2 text-left text-sm font-semibold">Warehouse</th>
-                  <th className="px-4 py-2 text-left text-sm font-semibold">Location</th>
-                  <th className="px-4 py-2 text-right text-sm font-semibold">On Hand</th>
-                  <th className="px-4 py-2 text-right text-sm font-semibold">Reserved</th>
-                  <th className="px-4 py-2 text-right text-sm font-semibold">Available</th>
-                  <th className="px-4 py-2 text-right text-sm font-semibold">Reorder Point</th>
-                  <th className="px-4 py-2 text-left text-sm font-semibold">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredStockLevels.map((level) => {
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
+                <TableHead>Product</TableHead>
+                <TableHead>SKU</TableHead>
+                <TableHead>Warehouse</TableHead>
+                <TableHead className="text-right">Available Qty</TableHead>
+                <TableHead className="text-right">Reserved Qty</TableHead>
+                <TableHead className="text-right">Total Qty</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredStockLevels.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                    No stock levels found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredStockLevels.map((level) => {
                   const status = getStockStatus(level);
                   const available = parseFloat(level.quantityOnHand) - parseFloat(level.quantityReserved);
-                  const warehouse = level.warehouse as any;
                   
                   return (
-                    <tr key={level.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 font-medium">{level.product.name}</td>
-                      <td className="px-4 py-2">{level.product.sku}</td>
-                      <td className="px-4 py-2">{level.warehouse.name}</td>
-                      <td className="px-4 py-2">{level.location?.name || `${warehouse?.city || ''}, ${warehouse?.state || ''}`.trim().replace(/^,\s*|,\s*$/g, '') || 'General'}</td>
-                      <td className="px-4 py-2 text-right">{parseFloat(level.quantityOnHand).toFixed(2)}</td>
-                      <td className="px-4 py-2 text-right">{parseFloat(level.quantityReserved).toFixed(2)}</td>
-                      <td className="px-4 py-2 text-right font-semibold">
+                    <TableRow key={level.id} className="hover:bg-gray-50/50">
+                      <TableCell className="font-medium">{level.product.name}</TableCell>
+                      <TableCell>{level.product.sku}</TableCell>
+                      <TableCell>{level.warehouse.name}</TableCell>
+                      <TableCell className="text-right font-semibold">
                         {available.toFixed(2)}
-                      </td>
-                      <td className="px-4 py-2 text-right">
-                        {parseFloat(level.product.reorderPoint).toFixed(2)}
-                      </td>
-                      <td className="px-4 py-2">
+                      </TableCell>
+                      <TableCell className="text-right">{parseFloat(level.quantityReserved).toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{parseFloat(level.quantityOnHand).toFixed(2)}</TableCell>
+                      <TableCell>
                         <span className={`px-2 py-1 text-xs rounded border ${status.color}`}>
                           {status.label}
                         </span>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
-                })}
-              </tbody>
-            </table>
-
-            {filteredStockLevels.length === 0 && (
-              <div className="text-center text-gray-500 py-8">
-                No stock levels found
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
     </div>
   );
 }

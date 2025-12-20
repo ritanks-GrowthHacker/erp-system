@@ -7,15 +7,16 @@ import { eq, and, sql } from 'drizzle-orm';
 // GET /api/erp/inventory/adjustments/[id]
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const { user, error } = await requireErpAccess(req);
   if (error) return error;
 
   try {
     const adjustment = await erpDb.query.stockAdjustments.findFirst({
       where: and(
-        eq(stockAdjustments.id, params.id),
+        eq(stockAdjustments.id, id),
         eq(stockAdjustments.erpOrganizationId, user.erpOrganizationId)
       ),
       with: {
@@ -48,8 +49,9 @@ export async function GET(
 // POST /api/erp/inventory/adjustments/[id]/confirm
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const { user, error } = await requireErpAccess(req, 'manager');
   if (error) return error;
 
@@ -64,7 +66,7 @@ export async function POST(
     // Get adjustment with lines
     const adjustment = await erpDb.query.stockAdjustments.findFirst({
       where: and(
-        eq(stockAdjustments.id, params.id),
+        eq(stockAdjustments.id, id),
         eq(stockAdjustments.erpOrganizationId, user.erpOrganizationId)
       ),
       with: {
@@ -137,7 +139,7 @@ export async function POST(
         approvedBy: user.id,
         updatedAt: new Date(),
       })
-      .where(eq(stockAdjustments.id, params.id))
+      .where(eq(stockAdjustments.id, id))
       .returning();
 
     return NextResponse.json({ adjustment: updated });
@@ -153,8 +155,9 @@ export async function POST(
 // DELETE /api/erp/inventory/adjustments/[id]
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const { user, error } = await requireErpAccess(req, 'manager');
   if (error) return error;
 
@@ -168,7 +171,7 @@ export async function DELETE(
   try {
     const existing = await erpDb.query.stockAdjustments.findFirst({
       where: and(
-        eq(stockAdjustments.id, params.id),
+        eq(stockAdjustments.id, id),
         eq(stockAdjustments.erpOrganizationId, user.erpOrganizationId)
       ),
     });
@@ -190,7 +193,7 @@ export async function DELETE(
 
     await erpDb
       .delete(stockAdjustments)
-      .where(eq(stockAdjustments.id, params.id));
+      .where(eq(stockAdjustments.id, id));
 
     return NextResponse.json({ message: 'Stock adjustment deleted successfully' });
   } catch (err: any) {

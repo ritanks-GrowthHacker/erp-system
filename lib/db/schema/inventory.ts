@@ -25,6 +25,17 @@ export const warehouses = pgTable('warehouses', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
+export const warehouseManagers = pgTable('warehouse_managers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  warehouseId: uuid('warehouse_id').notNull().references(() => warehouses.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 255 }).notNull(),
+  address: text('address'),
+  mobileNumber: varchar('mobile_number', { length: 20 }),
+  gender: varchar('gender', { length: 20 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
 export const warehouseLocations: any = pgTable('warehouse_locations', {
   id: uuid('id').primaryKey().defaultRandom(),
   warehouseId: uuid('warehouse_id').notNull().references(() => warehouses.id, { onDelete: 'cascade' }),
@@ -215,6 +226,21 @@ export const stockAlerts = pgTable('stock_alerts', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
+export const salesHistory = pgTable('sales_history', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  erpOrganizationId: uuid('erp_organization_id').notNull().references(() => erpOrganizations.id, { onDelete: 'cascade' }),
+  productId: uuid('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
+  warehouseId: uuid('warehouse_id').references(() => warehouses.id, { onDelete: 'cascade' }),
+  periodStart: date('period_start').notNull(),
+  periodEnd: date('period_end').notNull(),
+  quantitySold: decimal('quantity_sold', { precision: 15, scale: 2 }).notNull().default('0'),
+  revenue: decimal('revenue', { precision: 15, scale: 2 }).default('0'),
+  costOfGoodsSold: decimal('cost_of_goods_sold', { precision: 15, scale: 2 }).default('0'),
+  numberOfOrders: integer('number_of_orders').default(0),
+  averageOrderQuantity: decimal('average_order_quantity', { precision: 15, scale: 2 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
 // Relations
 export const warehousesRelations = relations(warehouses, ({ one, many }) => ({
   organization: one(erpOrganizations, {
@@ -223,6 +249,17 @@ export const warehousesRelations = relations(warehouses, ({ one, many }) => ({
   }),
   locations: many(warehouseLocations),
   stockLevels: many(stockLevels),
+  manager: one(warehouseManagers, {
+    fields: [warehouses.id],
+    references: [warehouseManagers.warehouseId],
+  }),
+}));
+
+export const warehouseManagersRelations = relations(warehouseManagers, ({ one }) => ({
+  warehouse: one(warehouses, {
+    fields: [warehouseManagers.warehouseId],
+    references: [warehouses.id],
+  }),
 }));
 
 export const productsRelations = relations(products, ({ one, many }) => ({
@@ -351,6 +388,21 @@ export const stockAlertsRelations = relations(stockAlerts, ({ one }) => ({
   }),
   warehouse: one(warehouses, {
     fields: [stockAlerts.warehouseId],
+    references: [warehouses.id],
+  }),
+}));
+
+export const salesHistoryRelations = relations(salesHistory, ({ one }) => ({
+  organization: one(erpOrganizations, {
+    fields: [salesHistory.erpOrganizationId],
+    references: [erpOrganizations.id],
+  }),
+  product: one(products, {
+    fields: [salesHistory.productId],
+    references: [products.id],
+  }),
+  warehouse: one(warehouses, {
+    fields: [salesHistory.warehouseId],
     references: [warehouses.id],
   }),
 }));

@@ -1,19 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/form';
 import { getAuthToken } from '@/lib/utils/token';
 import Link from 'next/link';
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from '@/components/ui/table';
 
 interface Quotation {
   id: string;
@@ -134,101 +124,91 @@ export default function QuotationsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="p-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Supplier Quotations</h1>
-          <p className="text-gray-600 mt-1">Review and compare supplier quotes</p>
+          <h2 className="text-2xl font-semibold text-gray-900">Supplier Quotations</h2>
+          <p className="text-sm text-gray-500 mt-1">Review and compare supplier quotes</p>
         </div>
         <Link href="/erp/purchasing/rfq">
-          <Button variant="secondary">View RFQs</Button>
+          <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors">
+            View RFQs
+          </button>
         </Link>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-sm text-gray-500">Submitted</div>
-            <div className="text-2xl font-bold text-blue-600 mt-1">
-              {quotations.filter(q => q.status === 'submitted').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-sm text-gray-500">Under Review</div>
-            <div className="text-2xl font-bold text-yellow-600 mt-1">
-              {quotations.filter(q => q.status === 'under_review').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-sm text-gray-500">Accepted</div>
-            <div className="text-2xl font-bold text-green-600 mt-1">
-              {quotations.filter(q => q.status === 'accepted').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-sm text-gray-500">Rejected</div>
-            <div className="text-2xl font-bold text-red-600 mt-1">
-              {quotations.filter(q => q.status === 'rejected').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-sm text-gray-500">Expired</div>
-            <div className="text-2xl font-bold text-gray-600 mt-1">
-              {quotations.filter(q => q.status === 'expired').length}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Submitted</div>
+          <div className="text-2xl font-bold text-blue-600">
+            {quotations.filter(q => q.status === 'submitted').length}
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Under Review</div>
+          <div className="text-2xl font-bold text-yellow-600">
+            {quotations.filter(q => q.status === 'under_review').length}
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Accepted</div>
+          <div className="text-2xl font-bold text-green-600">
+            {quotations.filter(q => q.status === 'accepted').length}
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Rejected</div>
+          <div className="text-2xl font-bold text-red-600">
+            {quotations.filter(q => q.status === 'rejected').length}
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Expired</div>
+          <div className="text-2xl font-bold text-gray-600">
+            {quotations.filter(q => q.status === 'expired').length}
+          </div>
+        </div>
       </div>
 
-      {/* Quotations List */}
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Quotations</CardTitle>
-            <Input placeholder="Search quotations..." className="w-64" />
-          </div>
-        </CardHeader>
-        <CardContent>
+      {/* Quotations Table */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+          <h3 className="text-base font-semibold text-gray-900">Quotations</h3>
+          <input placeholder="Search quotations..." className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm" />
+        </div>
+        <div className="overflow-x-auto">
           {loading ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-12 text-gray-500">
               Loading quotations...
             </div>
           ) : quotations.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-12 text-gray-500">
               No quotations found. Suppliers will submit quotes in response to RFQs.
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Quotation #</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead>RFQ Reference</TableHead>
-                  <TableHead>Valid Until</TableHead>
-                  <TableHead>Total Amount</TableHead>
-                  <TableHead>Delivery Time</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Quotation #</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Supplier</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">RFQ Reference</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Valid Until</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Total Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Delivery Time</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
                 {quotations.map((quotation) => (
-                  <TableRow key={quotation.id}>
-                    <TableCell className="font-medium">{quotation.quotationNumber}</TableCell>
-                    <TableCell>{new Date(quotation.quotationDate).toLocaleDateString()}</TableCell>
-                    <TableCell>{quotation.supplier.name}</TableCell>
-                    <TableCell>
+                  <tr key={quotation.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{quotation.quotationNumber}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(quotation.quotationDate).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{quotation.supplier.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {quotation.rfq ? (
                         <div>
                           <div className="font-medium">{quotation.rfq.rfqNumber}</div>
@@ -237,57 +217,53 @@ export default function QuotationsPage() {
                       ) : (
                         '-'
                       )}
-                    </TableCell>
-                    <TableCell>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {quotation.validUntil ? new Date(quotation.validUntil).toLocaleDateString() : '-'}
-                    </TableCell>
-                    <TableCell className="font-semibold">₹{parseFloat(quotation.totalAmount).toFixed(2)}</TableCell>
-                    <TableCell>{quotation.deliveryTime ? `${quotation.deliveryTime} days` : '-'}</TableCell>
-                    <TableCell>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">₹{parseFloat(quotation.totalAmount).toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{quotation.deliveryTime ? `${quotation.deliveryTime} days` : '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(quotation.status)}`}>
                         {quotation.status.replace('_', ' ').toUpperCase()}
                       </span>
-                    </TableCell>
-                    <TableCell>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex gap-2">
-                        <Button variant="ghost" size="sm">View</Button>
+                        <button className="text-blue-600 hover:text-blue-800 font-medium">View</button>
                         {quotation.status === 'submitted' || quotation.status === 'under_review' ? (
                           <>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
+                            <button 
                               onClick={() => handleAcceptQuotation(quotation.id)}
-                              className="text-green-600 hover:text-green-700"
+                              className="text-green-600 hover:text-green-700 font-medium"
                             >
                               Accept
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
+                            </button>
+                            <button 
                               onClick={() => handleRejectQuotation(quotation.id)}
-                              className="text-red-600 hover:text-red-700"
+                              className="text-red-600 hover:text-red-700 font-medium"
                             >
                               Reject
-                            </Button>
+                            </button>
                           </>
                         ) : null}
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 ))}
-              </TableBody>
-            </Table>
+              </tbody>
+            </table>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Comparison Section */}
       {quotations.filter(q => q.status === 'submitted' || q.status === 'under_review').length > 1 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Compare Quotations</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-base font-semibold text-gray-900">Compare Quotations</h3>
+          </div>
+          <div className="p-6">
             <div className="grid grid-cols-3 gap-4">
               {quotations
                 .filter(q => q.status === 'submitted' || q.status === 'under_review')
@@ -312,26 +288,23 @@ export default function QuotationsPage() {
                       </div>
                     </div>
                     <div className="mt-4 flex gap-2">
-                      <Button 
-                        size="sm" 
-                        className="flex-1"
+                      <button 
                         onClick={() => handleAcceptQuotation(quotation.id)}
+                        className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors text-sm"
                       >
                         Accept
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="secondary"
-                        className="flex-1"
+                      </button>
+                      <button 
+                        className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors text-sm"
                       >
                         Details
-                      </Button>
+                      </button>
                     </div>
                   </div>
                 ))}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
     </div>
   );

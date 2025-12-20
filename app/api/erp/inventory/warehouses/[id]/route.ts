@@ -3,6 +3,7 @@ import { erpDb } from '@/lib/db';
 import { warehouses, warehouseLocations } from '@/lib/db/schema';
 import { requireErpAccess, hasPermission } from '@/lib/auth';
 import { eq, and } from 'drizzle-orm';
+import { handleDatabaseError, logDatabaseError } from '@/lib/db/error-handler';
 
 // GET /api/erp/inventory/warehouses/[id]
 export async function GET(
@@ -40,12 +41,10 @@ export async function GET(
     }
 
     return NextResponse.json({ warehouse });
-  } catch (err: any) {
-    console.error('Error fetching warehouse:', err);
-    return NextResponse.json(
-      { error: 'Failed to fetch warehouse' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Fetching warehouse', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }
 
@@ -133,12 +132,10 @@ export async function PUT(
       .returning();
 
     return NextResponse.json({ warehouse: updated });
-  } catch (err: any) {
-    console.error('Error updating warehouse:', err);
-    return NextResponse.json(
-      { error: 'Failed to update warehouse' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Updating warehouse', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }
 
@@ -190,11 +187,9 @@ export async function DELETE(
       .where(eq(warehouses.id, id));
 
     return NextResponse.json({ message: 'Warehouse deleted successfully' });
-  } catch (err: any) {
-    console.error('Error deleting warehouse:', err);
-    return NextResponse.json(
-      { error: 'Failed to delete warehouse' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Deleting warehouse', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }

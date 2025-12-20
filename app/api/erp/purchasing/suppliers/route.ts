@@ -5,6 +5,7 @@ import { requireErpAccess, hasPermission } from '@/lib/auth';
 import { eq, and, like, sql } from 'drizzle-orm';
 import { sendEmail } from '@/lib/emailServices';
 import { getSupplierWelcomeEmailTemplate } from '@/lib/emailTemplates';
+import { handleDatabaseError, logDatabaseError } from '@/lib/db/error-handler';
 
 // GET /api/erp/purchasing/suppliers
 export async function GET(req: NextRequest) {
@@ -41,12 +42,10 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({ suppliers: suppliersList });
-  } catch (err: any) {
-    console.error('Error fetching suppliers:', err);
-    return NextResponse.json(
-      { error: 'Failed to fetch suppliers' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Fetching suppliers', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }
 
@@ -161,11 +160,9 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ supplier: newSupplier }, { status: 201 });
-  } catch (err: any) {
-    console.error('Error creating supplier:', err);
-    return NextResponse.json(
-      { error: 'Failed to create supplier' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Creating supplier', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }

@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { getAuthToken } from '@/lib/utils/token';
-import { Input, Textarea } from '@/components/ui/form';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
+import { ChevronDown } from 'lucide-react';
+import React from 'react';
+import WarehouseModal from '@/components/modal/WarehouseModal';
+import AddProductToWarehouseModal from '@/components/modal/AddProductToWarehouseModal';
 
 interface Warehouse {
   id: string;
@@ -18,6 +20,16 @@ interface Warehouse {
   email: string | null;
   isActive: boolean;
   locations?: any[];
+  manager?: {
+    name: string;
+    address: string;
+    mobileNumber: string;
+    gender: string;
+  } | null;
+  managerName?: string | null;
+  managerAddress?: string | null;
+  managerMobile?: string | null;
+  managerGender?: string | null;
 }
 
 export default function WarehousesPage() {
@@ -25,6 +37,22 @@ export default function WarehousesPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [generatingCode, setGeneratingCode] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  
+  // Add Product to Warehouse Modal State
+  const [showAddProductModal, setShowAddProductModal] = useState(false);
+  const [selectedWarehouse, setSelectedWarehouse] = useState<Warehouse | null>(null);
+  const [products, setProducts] = useState<any[]>([]);
+  const [locations, setLocations] = useState<any[]>([]);
+  const [addProductLoading, setAddProductLoading] = useState(false);
+  const [addProductFormData, setAddProductFormData] = useState({
+    productId: '',
+    locationId: '',
+    quantityOnHand: '',
+    quantityReserved: '0',
+  });
+  
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -34,9 +62,11 @@ export default function WarehousesPage() {
     country: '',
     phone: '',
     email: '',
+    managerName: '',
+    managerAddress: '',
+    managerMobile: '',
+    managerGender: '',
   });
-
-
 
   useEffect(() => {
     fetchWarehouses();
@@ -54,12 +84,48 @@ export default function WarehousesPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setWarehouses(data.warehouses || []);
+        const mappedWarehouses = (data.warehouses || []).map((w: any) => ({
+          ...w,
+          managerName: w.manager?.name || null,
+          managerAddress: w.manager?.address || null,
+          managerMobile: w.manager?.mobileNumber || null,
+          managerGender: w.manager?.gender || null,
+        }));
+        setWarehouses(mappedWarehouses);
       }
     } catch (error) {
       console.error('Error fetching warehouses:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGenerateCode = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      setGeneratingCode(true);
+      const response = await fetch('/api/erp/inventory/generate-code', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ type: 'warehouse' }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setFormData({ ...formData, code: data.code });
+      } else {
+        alert('Failed to generate code');
+      }
+    } catch (error) {
+      console.error('Error generating code:', error);
+      alert('Failed to generate code');
+    } finally {
+      setGeneratingCode(false);
     }
   };
 
@@ -69,9 +135,8 @@ export default function WarehousesPage() {
     if (!token) return;
 
     try {
-      const url = editingId
-        ? `/api/erp/inventory/warehouses/${editingId}`
-        : '/api/erp/inventory/warehouses';
+      const url = '/api/erp/inventory/warehouses';
+      const requestBody = editingId ? { ...formData, id: editingId } : formData;
       
       const response = await fetch(url, {
         method: editingId ? 'PUT' : 'POST',
@@ -79,7 +144,7 @@ export default function WarehousesPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(requestBody),
       });
 
       if (response.ok) {
@@ -107,6 +172,10 @@ export default function WarehousesPage() {
       country: warehouse.country || '',
       phone: warehouse.phone || '',
       email: warehouse.email || '',
+      managerName: warehouse.managerName || '',
+      managerAddress: warehouse.managerAddress || '',
+      managerMobile: warehouse.managerMobile || '',
+      managerGender: warehouse.managerGender || '',
     });
     setShowForm(true);
   };
@@ -146,9 +215,110 @@ export default function WarehousesPage() {
       country: '',
       phone: '',
       email: '',
+      managerName: '',
+      managerAddress: '',
+      managerMobile: '',
+      managerGender: '',
     });
     setEditingId(null);
     setShowForm(false);
+  };
+
+  const handleAddProductToWarehouse = async (warehouse: Warehouse) => {
+    setSelectedWarehouse(warehouse);
+    
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      // Fetch products
+      const productsRes = await fetch('/api/erp/inventory/products', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (productsRes.ok) {
+        const data = await productsRes.json();
+        setProducts(data.products || []);
+      }
+
+      // Fetch warehouse locations
+      const locationsRes = await fetch(`/api/erp/inventory/warehouses/${warehouse.id}/locations`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (locationsRes.ok) {
+        const data = await locationsRes.json();
+        setLocations(data.locations || []);
+      }
+
+      setShowAddProductModal(true);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      alert('Failed to load product/location data');
+    }
+  };
+
+  const handleAddProductSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = getAuthToken();
+    if (!token || !selectedWarehouse) return;
+
+    try {
+      setAddProductLoading(true);
+      const response = await fetch('/api/erp/inventory/stock-levels', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          productId: addProductFormData.productId,
+          warehouseId: selectedWarehouse.id,
+          locationId: addProductFormData.locationId || null,
+          quantityOnHand: parseFloat(addProductFormData.quantityOnHand),
+          quantityReserved: parseFloat(addProductFormData.quantityReserved) || 0,
+        }),
+      });
+
+      if (response.ok) {
+        alert('Product added to warehouse successfully!');
+        setShowAddProductModal(false);
+        setAddProductFormData({
+          productId: '',
+          locationId: '',
+          quantityOnHand: '',
+          quantityReserved: '0',
+        });
+        setSelectedWarehouse(null);
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to add product to warehouse');
+      }
+    } catch (error) {
+      console.error('Error adding product to warehouse:', error);
+      alert('Failed to add product to warehouse');
+    } finally {
+      setAddProductLoading(false);
+    }
+  };
+
+  const closeAddProductModal = () => {
+    setShowAddProductModal(false);
+    setSelectedWarehouse(null);
+    setAddProductFormData({
+      productId: '',
+      locationId: '',
+      quantityOnHand: '',
+      quantityReserved: '0',
+    });
+  };
+
+  const toggleRow = (id: string) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
+    } else {
+      newExpanded.add(id);
+    }
+    setExpandedRows(newExpanded);
   };
 
   if (loading) {
@@ -160,247 +330,232 @@ export default function WarehousesPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Warehouses</h1>
-        <Button
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-semibold text-gray-900 italic">Warehouses</h2>
+          <p className="text-sm text-gray-500 mt-1">Manage storage facilities and locations</p>
+        </div>
+        <button
           onClick={() => {
             resetForm();
             setShowForm(!showForm);
           }}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
         >
           {showForm ? 'Cancel' : '+ Add Warehouse'}
-        </Button>
+        </button>
       </div>
 
-      {showForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{editingId ? 'Edit Warehouse' : 'Create New Warehouse'}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Warehouse Name *
-                  </label>
-                  <Input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                    required
-                  />
-                </div>
+      <WarehouseModal
+        isOpen={showForm}
+        onClose={resetForm}
+        onSubmit={handleSubmit}
+        formData={formData}
+        setFormData={setFormData}
+        editingId={editingId}
+        generatingCode={generatingCode}
+        onGenerateCode={handleGenerateCode}
+      />
 
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Warehouse Code *
-                  </label>
-                  <Input
-                    type="text"
-                    value={formData.code}
-                    onChange={(e) =>
-                      setFormData({ ...formData, code: e.target.value })
-                    }
-                    required
-                  />
-                </div>
+      <AddProductToWarehouseModal
+        isOpen={showAddProductModal}
+        onClose={closeAddProductModal}
+        onSubmit={handleAddProductSubmit}
+        warehouseId={selectedWarehouse?.id || ''}
+        warehouseName={selectedWarehouse?.name || ''}
+        products={products}
+        locations={locations}
+        formData={addProductFormData}
+        setFormData={setAddProductFormData}
+        loading={addProductLoading}
+      />
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-1">
-                    Address
-                  </label>
-                  <Textarea
-                    value={formData.address}
-                    onChange={(e) =>
-                      setFormData({ ...formData, address: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">City</label>
-                  <Input
-                    type="text"
-                    value={formData.city}
-                    onChange={(e) =>
-                      setFormData({ ...formData, city: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">State</label>
-                  <Input
-                    type="text"
-                    value={formData.state}
-                    onChange={(e) =>
-                      setFormData({ ...formData, state: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Country</label>
-                  <Input
-                    type="text"
-                    value={formData.country}
-                    onChange={(e) =>
-                      setFormData({ ...formData, country: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Phone</label>
-                  <Input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) =>
-                      setFormData({ ...formData, phone: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Email</label>
-                  <Input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button type="submit">
-                  {editingId ? 'Update Warehouse' : 'Create Warehouse'}
-                </Button>
-                <Button
-                  type="button"
-                  onClick={resetForm}
-                  className="bg-gray-500 hover:bg-gray-600"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Warehouses ({warehouses.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {warehouses.map((warehouse) => (
-              <div
-                key={warehouse.id}
-                className="border-2 border-gray-200 rounded-xl p-5 hover:shadow-lg hover:border-blue-300 transition-all duration-200 bg-linear-to-br from-white to-gray-50"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-gray-800 mb-1">{warehouse.name}</h3>
-                    <p className="text-sm font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded inline-block">
-                      {warehouse.code}
-                    </p>
-                  </div>
-                  <span
-                    className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                      warehouse.isActive
-                        ? 'bg-green-500 text-white shadow-md'
-                        : 'bg-gray-300 text-gray-700'
-                    }`}
-                  >
-                    {warehouse.isActive ? '● Active' : '○ Inactive'}
-                  </span>
-                </div>
-
-                <div className="space-y-2 mb-4 min-h-[120px]">
-                  {warehouse.address && (
-                    <div className="flex items-start gap-2">
-                      <span className="text-blue-500 text-lg">📍</span>
-                      <p className="text-sm text-gray-700 flex-1">{warehouse.address}</p>
-                    </div>
-                  )}
-
-                  {warehouse.city && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-green-500 text-lg">🏙️</span>
-                      <p className="text-sm text-gray-700">
-                        {warehouse.city}
-                        {warehouse.state && `, ${warehouse.state}`}
-                        {warehouse.country && ` • ${warehouse.country}`}
-                      </p>
-                    </div>
-                  )}
-
-                  {warehouse.phone && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-purple-500 text-lg">📞</span>
-                      <p className="text-sm text-gray-700">{warehouse.phone}</p>
-                    </div>
-                  )}
-
-                  {warehouse.email && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-orange-500 text-lg">✉️</span>
-                      <p className="text-sm text-gray-700">{warehouse.email}</p>
-                    </div>
-                  )}
-                </div>
-
-                {warehouse.locations && warehouse.locations.length > 0 && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 mb-3">
-                    <p className="text-sm font-semibold text-blue-700">
-                      📦 {warehouse.locations.length} Storage Location{warehouse.locations.length !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                )}
-
-                <div className="flex gap-2 pt-3 border-t border-gray-200">
-                  <button
-                    onClick={() => handleEdit(warehouse)}
-                    className="flex-1 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-                  >
-                    ✏️ Edit
-                  </button>
-                  <button
-                    onClick={() =>
-                      (window.location.href = `/erp/inventory/warehouses/${warehouse.id}`)
-                    }
-                    className="flex-1 px-3 py-2 text-sm font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
-                  >
-                    👁️ View
-                  </button>
-                  <button
-                    onClick={() => handleDelete(warehouse.id)}
-                    className="px-3 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
-                  >
-                    🗑️
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {warehouses.length === 0 && (
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h3 className="text-base font-semibold text-gray-900">Warehouses ({warehouses.length})</h3>
+        </div>
+        <div className="overflow-x-auto">
+          {warehouses.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-6xl mb-4">🏭</div>
               <p className="text-gray-500 text-lg mb-2">No warehouses found</p>
               <p className="text-gray-400 text-sm">Create your first warehouse to get started!</p>
             </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gray-50/80">
+                  <TableHead className="font-semibold text-gray-700">Warehouse Name</TableHead>
+                  <TableHead className="font-semibold text-gray-700">Code</TableHead>
+                  <TableHead className="font-semibold text-gray-700">Location</TableHead>
+                  <TableHead className="font-semibold text-gray-700">Status</TableHead>
+                  <TableHead className="font-semibold text-gray-700">Phone</TableHead>
+                  <TableHead className="font-semibold text-gray-700">Email</TableHead>
+                  <TableHead className="font-semibold text-gray-700 text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {warehouses.map((warehouse) => (
+                  <React.Fragment key={warehouse.id}>
+                    <TableRow 
+                      className="hover:bg-gray-50/50 cursor-pointer transition-colors"
+                      onClick={() => toggleRow(warehouse.id)}
+                    >
+                      <TableCell className="font-medium text-gray-900">{warehouse.name}</TableCell>
+                      <TableCell>
+                        <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
+                          {warehouse.code}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-gray-600">
+                        {warehouse.city || warehouse.state || warehouse.country ? (
+                          <>
+                            {warehouse.city}
+                            {warehouse.state && `, ${warehouse.state}`}
+                            {warehouse.country && ` • ${warehouse.country}`}
+                          </>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            warehouse.isActive
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}
+                        >
+                          {warehouse.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-gray-600">
+                        {warehouse.phone || <span className="text-gray-400">-</span>}
+                      </TableCell>
+                      <TableCell className="text-gray-600">
+                        {warehouse.email || <span className="text-gray-400">-</span>}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleRow(warehouse.id);
+                          }}
+                          className="inline-flex items-center justify-center w-8 h-8 rounded hover:bg-gray-100 transition-colors"
+                        >
+                          <ChevronDown
+                            className={`w-5 h-5 text-gray-600 transition-transform ${
+                              expandedRows.has(warehouse.id) ? 'rotate-180' : ''
+                            }`}
+                          />
+                        </button>
+                      </TableCell>
+                    </TableRow>
+                    {expandedRows.has(warehouse.id) && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="bg-gray-50/30 border-t border-gray-100">
+                          <div className="py-4 px-6 space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <h4 className="text-md font-semibold text-gray-700 mb-2">Full Address</h4>
+                                <p className="text-sm text-gray-600">
+                                  {warehouse.address || <span className="text-gray-400">No address provided</span>}
+                                </p>
+                                {(warehouse.city || warehouse.state || warehouse.country) && (
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    {warehouse.city}
+                                    {warehouse.state && `, ${warehouse.state}`}
+                                    {warehouse.country && ` • ${warehouse.country}`}
+                                  </p>
+                                )}
+                              </div>
+                              <div>
+                                <h4 className="text-md font-semibold text-gray-700 mb-2">Storage Information</h4>
+                                <p className="text-sm text-gray-600">
+                                  {warehouse.locations && warehouse.locations.length > 0 ? (
+                                    <>
+                                      {warehouse.locations.length} Storage Location{warehouse.locations.length !== 1 ? 's' : ''}
+                                    </>
+                                  ) : (
+                                    <span className="text-gray-400">No storage locations</span>
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="border-t border-gray-200 pt-4 mt-4">
+                              <h4 className="text-md font-semibold text-gray-700 mb-2">Manager Details</h4>
+                              {warehouse.managerName || warehouse.managerMobile || warehouse.managerGender || warehouse.managerAddress ? (
+                                <div className="flex gap-20">
+                                  {warehouse.managerName && (
+                                    <div>
+                                      <p className="text-md text-gray-500">Name</p>
+                                      <p className="text-sm text-gray-700 font-medium">{warehouse.managerName}</p>
+                                    </div>
+                                  )}
+                                  {warehouse.managerMobile && (
+                                    <div>
+                                      <p className="text-md text-gray-500">Mobile Number</p>
+                                      <p className="text-sm text-gray-700">{warehouse.managerMobile}</p>
+                                    </div>
+                                  )}
+                                  {warehouse.managerGender && (
+                                    <div>
+                                      <p className="text-md text-gray-500">Gender</p>
+                                      <p className="text-sm text-gray-700">{warehouse.managerGender}</p>
+                                    </div>
+                                  )}
+                                  {warehouse.managerAddress && (
+                                    <div className="md:col-span-2">
+                                      <p className="text-md text-gray-500">Address</p>
+                                      <p className="text-sm text-gray-700">{warehouse.managerAddress}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="text-sm text-gray-400">No manager information available</p>
+                              )}
+                            </div>
+                            <div className="flex gap-2 pt-2 ml-auto justify-end">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAddProductToWarehouse(warehouse);
+                                }}
+                                className="px-4 py-2 w-[150px] cursor-pointer text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+                              >
+                                + Add Product
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEdit(warehouse);
+                                }}
+                                className="px-4 py-2 w-[120px] cursor-pointer text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.location.href = `/erp/inventory/warehouses/${warehouse.id}`;
+                                }}
+                                className="px-4 py-2 w-[120px] border border-gray-400 cursor-pointer text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                              >
+                                View Details
+                              </button>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
+                ))}
+              </TableBody>
+            </Table>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
-

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getAuthToken } from '@/lib/utils/token';
 
@@ -205,11 +204,9 @@ export default function WarehouseDetailPage() {
       </div>
 
       {/* Warehouse Details */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Warehouse Information</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Warehouse Information</h3>
+        <div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-gray-600">Type</p>
@@ -235,48 +232,46 @@ export default function WarehouseDetailPage() {
               <p className="font-medium">{warehouse.email || '-'}</p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Summary Stats */}
+      {/* Summary Stats */
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div>
             <div className="text-2xl font-bold">{locations.length}</div>
             <p className="text-sm text-gray-600">Total Locations</p>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card>
-          <CardContent className="pt-6">
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div>
             <div className="text-2xl font-bold">{stockLevels.length}</div>
             <p className="text-sm text-gray-600">Products Stored</p>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card>
-          <CardContent className="pt-6">
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div>
             <div className="text-2xl font-bold">
               {stockLevels
                 .reduce((sum, sl) => sum + parseFloat(sl.quantityOnHand), 0)
                 .toFixed(2)}
             </div>
             <p className="text-sm text-gray-600">Total Units</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Locations */}
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Warehouse Locations ({locations.length})</CardTitle>
-            <Button onClick={() => setShowLocationForm(!showLocationForm)}>
-              {showLocationForm ? 'Cancel' : '+ Add Location'}
-            </Button>
           </div>
-        </CardHeader>
-        <CardContent>
+        </div>
+      </div>
+}
+      {/* Locations */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Warehouse Locations ({locations.length})</h3>
+          <Button onClick={() => setShowLocationForm(!showLocationForm)}>
+            {showLocationForm ? 'Cancel' : '+ Add Location'}
+          </Button>
+        </div>
+        <div>
           {showLocationForm && (
             <div className="mb-6 p-4 border rounded bg-gray-50">
               <h3 className="font-semibold mb-4">Create New Location</h3>
@@ -403,15 +398,13 @@ export default function WarehouseDetailPage() {
               </div>
             )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Stock in Warehouse */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Stock in this Warehouse ({stockLevels.length} products)</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Stock in this Warehouse ({stockLevels.length} products)</h3>
+        <div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead>
@@ -448,8 +441,8 @@ export default function WarehouseDetailPage() {
               </div>
             )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

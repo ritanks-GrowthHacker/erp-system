@@ -3,6 +3,7 @@ import { erpDb } from '@/lib/db';
 import { stockMovements, stockMovementLines } from '@/lib/db/schema';
 import { requireErpAccess, hasPermission } from '@/lib/auth';
 import { eq, and, desc, gte, lte } from 'drizzle-orm';
+import { handleDatabaseError, logDatabaseError } from '@/lib/db/error-handler';
 
 // GET /api/erp/inventory/movements
 export async function GET(req: NextRequest) {
@@ -76,12 +77,10 @@ export async function GET(req: NextRequest) {
         total: movements.length,
       },
     });
-  } catch (err: any) {
-    console.error('Error fetching stock movements:', err);
-    return NextResponse.json(
-      { error: 'Failed to fetch stock movements' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Fetching stock movements', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }
 
@@ -164,11 +163,9 @@ export async function POST(req: NextRequest) {
       movement: newMovement,
       lines: movementLines,
     }, { status: 201 });
-  } catch (err: any) {
-    console.error('Error creating stock movement:', err);
-    return NextResponse.json(
-      { error: 'Failed to create stock movement' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Creating stock movement', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }

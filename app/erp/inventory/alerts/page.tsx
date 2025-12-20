@@ -1,9 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { getAuthToken } from '@/lib/utils/token';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
+import { Check } from 'lucide-react';
 
 interface StockAlert {
   id: string;
@@ -75,17 +82,23 @@ export default function StockAlertsPage() {
     }
   };
 
-  const getAlertColor = (alertType: string) => {
+  const getAlertTypeColor = (alertType: string) => {
     switch (alertType) {
       case 'low_stock':
-        return 'bg-yellow-100 border-yellow-300 text-yellow-800';
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'out_of_stock':
-        return 'bg-red-100 border-red-300 text-red-800';
+        return 'bg-red-100 text-red-800 border-red-200';
       case 'reorder_point':
-        return 'bg-orange-100 border-orange-300 text-orange-800';
+        return 'bg-orange-100 text-orange-800 border-orange-200';
       default:
-        return 'bg-gray-100 border-gray-300 text-gray-800';
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
+  };
+
+  const getStatusColor = (isResolved: boolean) => {
+    return isResolved
+      ? 'bg-green-100 text-green-800 border-green-200'
+      : 'bg-red-100 text-red-800 border-red-200';
   };
 
   if (loading) {
@@ -113,106 +126,104 @@ export default function StockAlertsPage() {
 
       {/* Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="p-6">
             <div className="text-2xl font-bold">{alerts.filter((a) => !a.is_resolved).length}</div>
             <p className="text-sm text-gray-600">Active Alerts</p>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card className="bg-red-50 border-red-200">
-          <CardContent className="pt-6">
+        <div className="bg-red-50 rounded-xl border border-red-200 overflow-hidden">
+          <div className="p-6">
             <div className="text-2xl font-bold text-red-700">
               {alerts.filter((a) => a.alert_type === 'out_of_stock' && !a.is_resolved).length}
             </div>
             <p className="text-sm text-red-600">Out of Stock</p>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card className="bg-yellow-50 border-yellow-200">
-          <CardContent className="pt-6">
+        <div className="bg-yellow-50 rounded-xl border border-yellow-200 overflow-hidden">
+          <div className="p-6">
             <div className="text-2xl font-bold text-yellow-700">
               {alerts.filter((a) => a.alert_type === 'low_stock' && !a.is_resolved).length}
             </div>
             <p className="text-sm text-yellow-600">Low Stock</p>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
       {/* Alerts List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>All Alerts ({alerts.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {alerts.map((alert) => (
-              <div
-                key={alert.id}
-                className={`p-4 rounded border ${getAlertColor(alert.alert_type)} ${
-                  alert.is_resolved ? 'opacity-50' : ''
-                }`}
-              >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="px-2 py-1 text-xs font-semibold rounded bg-white">
-                        {alert.alert_type.replace('_', ' ').toUpperCase()}
-                      </span>
-                      <span className={`px-2 py-1 text-xs font-semibold rounded ${
-                        alert.alert_level === 'critical' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {alert.alert_level.toUpperCase()}
-                      </span>
-                      {alert.is_resolved && (
-                        <span className="px-2 py-1 text-xs font-semibold rounded bg-green-100 text-green-800">
-                          RESOLVED
-                        </span>
-                      )}
-                    </div>
-                    <p className="font-medium mb-1">{alert.message}</p>
-                    <div className="text-sm space-y-1">
-                      <p>
-                        <span className="font-medium">Product:</span> {alert.product_name} (
-                        {alert.product_sku})
-                      </p>
-                      <p>
-                        <span className="font-medium">Warehouse:</span> {alert.warehouse_name}
-                      </p>
-                      <p>
-                        <span className="font-medium">Current Stock:</span> {parseFloat(alert.current_quantity || '0').toFixed(2)} | 
-                        <span className="font-medium"> Reorder Point:</span> {parseFloat(alert.threshold_quantity || '0').toFixed(2)}
-                      </p>
-                      <p className="text-gray-600">
-                        Created: {new Date(alert.created_at).toLocaleString()}
-                      </p>
-                      {alert.resolved_at && (
-                        <p className="text-gray-600">
-                          Resolved: {new Date(alert.resolved_at).toLocaleString()}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  {!alert.is_resolved && (
-                    <Button
-                      onClick={() => handleResolve(alert.id)}
-                      variant="secondary"
-                      className="ml-4"
-                    >
-                      Mark Resolved
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-            {alerts.length === 0 && (
-              <p className="text-center text-gray-500 py-8">
-                {showResolved ? 'No alerts found' : 'No active alerts'}
-              </p>
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h3 className="text-base font-semibold text-gray-900">All Alerts ({alerts.length})</h3>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
+              <TableHead>Alert Type</TableHead>
+              <TableHead>Product</TableHead>
+              <TableHead>SKU</TableHead>
+              <TableHead>Warehouse</TableHead>
+              <TableHead className="text-right">Current Qty</TableHead>
+              <TableHead className="text-right">Threshold</TableHead>
+              <TableHead>Message</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {alerts.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={10} className="text-center py-8 text-gray-500">
+                  {showResolved ? 'No alerts found' : 'No active alerts'}
+                </TableCell>
+              </TableRow>
+            ) : (
+              alerts.map((alert) => (
+                <TableRow key={alert.id} className="hover:bg-gray-50/50">
+                  <TableCell>
+                    <span className={`px-2 py-1 text-xs font-semibold rounded border ${getAlertTypeColor(alert.alert_type)}`}>
+                      {alert.alert_type.replace('_', ' ').toUpperCase()}
+                    </span>
+                  </TableCell>
+                  <TableCell className="font-medium">{alert.product_name}</TableCell>
+                  <TableCell className="text-gray-600">{alert.product_sku}</TableCell>
+                  <TableCell>{alert.warehouse_name}</TableCell>
+                  <TableCell className="text-right font-medium">
+                    {parseFloat(alert.current_quantity || '0').toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-right text-gray-600">
+                    {parseFloat(alert.threshold_quantity || '0').toFixed(2)}
+                  </TableCell>
+                  <TableCell className="max-w-xs">
+                    <div className="truncate text-sm text-gray-600">{alert.message}</div>
+                  </TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-1 text-xs font-semibold rounded border ${getStatusColor(alert.is_resolved)}`}>
+                      {alert.is_resolved ? 'Resolved' : 'Active'}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-sm text-gray-600">
+                    {new Date(alert.created_at).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {!alert.is_resolved && (
+                      <button
+                        onClick={() => handleResolve(alert.id)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                      >
+                        <Check className="w-4 h-4" />
+                        Resolve
+                      </button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
             )}
-          </div>
-        </CardContent>
-      </Card>
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

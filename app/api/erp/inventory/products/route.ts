@@ -3,6 +3,7 @@ import { erpDb } from '@/lib/db';
 import { products, productCategories } from '@/lib/db/schema';
 import { requireErpAccess, hasPermission } from '@/lib/auth';
 import { eq, and, like, desc } from 'drizzle-orm';
+import { handleDatabaseError, logDatabaseError } from '@/lib/db/error-handler';
 
 // GET /api/erp/inventory/products
 export async function GET(req: NextRequest) {
@@ -59,12 +60,10 @@ export async function GET(req: NextRequest) {
         total: productsList.length,
       },
     });
-  } catch (err: any) {
-    console.error('Error fetching products:', err);
-    return NextResponse.json(
-      { error: 'Failed to fetch products' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Fetching products', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }
 
@@ -122,6 +121,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Auto-generate barcode if not provided
+    const generatedBarcode = barcode || `${name.substring(0, 20).toUpperCase().replace(/[^A-Z0-9]/g, '')}-${sku.toUpperCase()}-WH00`;
+
     // Create product
     const [newProduct] = await erpDb
       .insert(products)
@@ -129,7 +131,7 @@ export async function POST(req: NextRequest) {
         erpOrganizationId: user.erpOrganizationId,
         name,
         sku,
-        barcode,
+        barcode: generatedBarcode,
         description,
         productType,
         trackingType: trackingType || 'none',
@@ -147,11 +149,9 @@ export async function POST(req: NextRequest) {
       .returning();
 
     return NextResponse.json({ product: newProduct }, { status: 201 });
-  } catch (err: any) {
-    console.error('Error creating product:', err);
-    return NextResponse.json(
-      { error: 'Failed to create product' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Creating product', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }

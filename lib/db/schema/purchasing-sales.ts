@@ -41,6 +41,23 @@ export const supplierContacts = pgTable('supplier_contacts', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
+// Product-Supplier junction table for multi-vendor support
+export const productSuppliers = pgTable('product_suppliers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  productId: uuid('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
+  supplierId: uuid('supplier_id').notNull().references(() => suppliers.id, { onDelete: 'cascade' }),
+  supplierSku: varchar('supplier_sku', { length: 100 }),
+  supplierProductName: varchar('supplier_product_name', { length: 255 }),
+  unitPrice: decimal('unit_price', { precision: 15, scale: 2 }),
+  minimumOrderQuantity: decimal('minimum_order_quantity', { precision: 15, scale: 2 }).default('1'),
+  leadTimeDays: integer('lead_time_days').default(0),
+  isPrimary: boolean('is_primary').default(false),
+  isActive: boolean('is_active').default(true),
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
 export const purchaseOrders = pgTable('purchase_orders', {
   id: uuid('id').primaryKey().defaultRandom(),
   erpOrganizationId: uuid('erp_organization_id').notNull().references(() => erpOrganizations.id, { onDelete: 'cascade' }),
@@ -592,6 +609,17 @@ export const rfqSuppliersRelations = relations(rfqSuppliers, ({ one }) => ({
   }),
   supplier: one(suppliers, {
     fields: [rfqSuppliers.supplierId],
+    references: [suppliers.id],
+  }),
+}));
+
+export const productSuppliersRelations = relations(productSuppliers, ({ one }) => ({
+  product: one(products, {
+    fields: [productSuppliers.productId],
+    references: [products.id],
+  }),
+  supplier: one(suppliers, {
+    fields: [productSuppliers.supplierId],
     references: [suppliers.id],
   }),
 }));

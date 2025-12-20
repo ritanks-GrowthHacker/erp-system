@@ -1,18 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/form';
 import { getAuthToken } from '@/lib/utils/token';
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from '@/components/ui/table';
 
 interface RFQ {
   id: string;
@@ -50,6 +40,8 @@ export default function RFQPage() {
   const [rfqs, setRFQs] = useState<RFQ[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedRFQ, setSelectedRFQ] = useState<any>(null);
   const [sendingRFQ, setSendingRFQ] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -246,6 +238,28 @@ export default function RFQPage() {
     }
   };
 
+  const handleViewRFQ = async (rfqId: string) => {
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`/api/erp/purchasing/rfq/${rfqId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedRFQ(data.rfq);
+        setShowViewModal(true);
+      } else {
+        alert('Failed to fetch RFQ details');
+      }
+    } catch (error) {
+      console.error('Error fetching RFQ:', error);
+      alert('Failed to fetch RFQ details');
+    }
+  };
+
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       draft: 'bg-gray-100 text-gray-800',
@@ -259,142 +273,246 @@ export default function RFQPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="p-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Request for Quotations (RFQ)</h1>
-          <p className="text-gray-600 mt-1">Request quotes from multiple suppliers</p>
+          <h2 className="text-2xl font-semibold text-gray-900">Request for Quotations (RFQ)</h2>
+          <p className="text-sm text-gray-500 mt-1">Request quotes from multiple suppliers</p>
         </div>
-        <Button onClick={() => setShowCreateModal(true)}>+ Create RFQ</Button>
+        <button 
+          onClick={() => setShowCreateModal(true)}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+        >
+          + Create RFQ
+        </button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-sm text-gray-500">Draft</div>
-            <div className="text-2xl font-bold text-gray-600 mt-1">
-              {rfqs.filter(r => r.status === 'draft').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-sm text-gray-500">Sent</div>
-            <div className="text-2xl font-bold text-blue-600 mt-1">
-              {rfqs.filter(r => r.status === 'sent').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-sm text-gray-500">In Progress</div>
-            <div className="text-2xl font-bold text-yellow-600 mt-1">
-              {rfqs.filter(r => r.status === 'in_progress').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-sm text-gray-500">Received</div>
-            <div className="text-2xl font-bold text-green-600 mt-1">
-              {rfqs.filter(r => r.status === 'received').length}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* RFQ List */}
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Request for Quotations</CardTitle>
-            <Input placeholder="Search RFQs..." className="w-64" />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Draft</div>
+          <div className="text-2xl font-bold text-gray-600">
+            {rfqs.filter(r => r.status === 'draft').length}
           </div>
-        </CardHeader>
-        <CardContent>
+        </div>
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Sent</div>
+          <div className="text-2xl font-bold text-blue-600">
+            {rfqs.filter(r => r.status === 'sent').length}
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">In Progress</div>
+          <div className="text-2xl font-bold text-yellow-600">
+            {rfqs.filter(r => r.status === 'in_progress').length}
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Received</div>
+          <div className="text-2xl font-bold text-green-600">
+            {rfqs.filter(r => r.status === 'received').length}
+          </div>
+        </div>
+      </div>
+
+      {/* RFQ Table */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+          <h3 className="text-base font-semibold text-gray-900">Request for Quotations</h3>
+          <input placeholder="Search RFQs..." className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm" />
+        </div>
+        <div className="overflow-x-auto">
           {loading ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-12 text-gray-500">
               Loading RFQs...
             </div>
           ) : rfqs.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-12 text-gray-500">
               No RFQs found. Create your first request for quotation.
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>RFQ #</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Deadline</TableHead>
-                  <TableHead>Suppliers</TableHead>
-                  <TableHead>Items</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">RFQ #</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Title</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Deadline</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Suppliers</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Items</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
                 {rfqs.map((rfq) => (
-                  <TableRow key={rfq.id}>
-                    <TableCell className="font-medium">{rfq.rfqNumber}</TableCell>
-                    <TableCell>{new Date(rfq.rfqDate).toLocaleDateString()}</TableCell>
-                    <TableCell>{rfq.title}</TableCell>
-                    <TableCell>
+                  <tr key={rfq.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{rfq.rfqNumber}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(rfq.rfqDate).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rfq.title}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {rfq.deadlineDate ? new Date(rfq.deadlineDate).toLocaleDateString() : '-'}
-                    </TableCell>
-                    <TableCell>{rfq.suppliers?.length || 0}</TableCell>
-                    <TableCell>{rfq.lines?.length || 0}</TableCell>
-                    <TableCell>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rfq.suppliers?.length || 0}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rfq.lines?.length || 0}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(rfq.status)}`}>
                         {rfq.status.replace('_', ' ').toUpperCase()}
                       </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <div className="flex gap-2 items-center">
                         {rfq.status === 'draft' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
+                          <button
                             onClick={() => handleSendRFQ(rfq.id)}
                             disabled={sendingRFQ === rfq.id}
-                            className="text-blue-600 hover:text-blue-800"
+                            className="text-blue-600 hover:text-blue-800 font-medium"
                           >
                             {sendingRFQ === rfq.id ? 'Sending...' : '📧 Send'}
-                          </Button>
+                          </button>
                         )}
                         {rfq.status === 'sent' && (
-                          <span className="text-green-600 text-sm">✓ Sent</span>
+                          <span className="text-green-600 text-sm flex items-center">✓ Sent</span>
                         )}
-                        <Button variant="ghost" size="sm">View</Button>
+                        <button onClick={() => handleViewRFQ(rfq.id)} className="text-blue-600 hover:text-blue-800 font-medium">View</button>
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 ))}
-              </TableBody>
-            </Table>
+              </tbody>
+            </table>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
+      {/* View RFQ Modal */}
+      {showViewModal && selectedRFQ && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center rounded-t-xl">
+              <h2 className="text-xl font-semibold text-gray-900">RFQ Details: {selectedRFQ.rfqNumber}</h2>
+              <button
+                onClick={() => setShowViewModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Header Information */}
+              <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
+                <div>
+                  <div className="text-sm text-gray-500">RFQ Number</div>
+                  <div className="font-semibold">{selectedRFQ.rfqNumber}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500">Status</div>
+                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedRFQ.status)}`}>
+                    {selectedRFQ.status.replace('_', ' ').toUpperCase()}
+                  </span>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500">RFQ Date</div>
+                  <div className="font-semibold">{new Date(selectedRFQ.rfqDate).toLocaleDateString()}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500">Deadline</div>
+                  <div className="font-semibold">
+                    {selectedRFQ.deadlineDate ? new Date(selectedRFQ.deadlineDate).toLocaleDateString() : '—'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Title and Description */}
+              <div>
+                <h3 className="font-semibold text-lg mb-2">{selectedRFQ.title}</h3>
+                {selectedRFQ.description && (
+                  <p className="text-gray-600">{selectedRFQ.description}</p>
+                )}
+              </div>
+
+              {/* Line Items */}
+              <div>
+                <h4 className="font-semibold mb-3">Requested Items</h4>
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">#</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Product</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Description</th>
+                        <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">Quantity</th>
+                        <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">Target Price</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {selectedRFQ.lines && selectedRFQ.lines.map((line: any, index: number) => (
+                        <tr key={index}>
+                          <td className="px-4 py-3 text-sm">{index + 1}</td>
+                          <td className="px-4 py-3 text-sm font-medium">{line.product?.name || 'Unknown'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600">{line.description || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-right">{parseFloat(line.quantityRequested).toLocaleString()}</td>
+                          <td className="px-4 py-3 text-sm text-right">
+                            {line.targetPrice ? `₹${parseFloat(line.targetPrice).toLocaleString('en-IN')}` : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Invited Suppliers */}
+              <div>
+                <h4 className="font-semibold mb-3">Invited Suppliers ({selectedRFQ.suppliers?.length || 0})</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  {selectedRFQ.suppliers && selectedRFQ.suppliers.map((supplier: any, index: number) => (
+                    <div key={index} className="border rounded-lg p-3">
+                      <div className="font-medium">{supplier.supplier?.name || 'Unknown'}</div>
+                      <div className="text-sm text-gray-500">{supplier.supplier?.code || '—'}</div>
+                      <div className="text-sm text-gray-600 mt-1">{supplier.supplier?.email || '—'}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Notes */}
+              {selectedRFQ.notes && (
+                <div>
+                  <h4 className="font-semibold mb-2">Notes</h4>
+                  <p className="text-gray-600 bg-gray-50 p-3 rounded">{selectedRFQ.notes}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t px-6 py-4 flex justify-end gap-3">
+              <button 
+                onClick={() => setShowViewModal(false)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create RFQ Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full m-4 max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold">Create Request for Quotation</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center rounded-t-xl">
+              <h2 className="text-xl font-semibold text-gray-900">Create Request for Quotation</h2>
               <button
                 onClick={() => {
                   setShowCreateModal(false);
                   resetForm();
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                ×
               </button>
             </div>
 
@@ -453,9 +571,13 @@ export default function RFQPage() {
               <div>
                 <div className="flex justify-between items-center mb-3">
                   <h3 className="text-lg font-semibold">Items Requested</h3>
-                  <Button type="button" onClick={addLineItem} variant="secondary">
+                  <button 
+                    type="button" 
+                    onClick={addLineItem}
+                    className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors text-sm"
+                  >
                     + Add Item
-                  </Button>
+                  </button>
                 </div>
 
                 {rfqLines.length === 0 ? (
@@ -578,19 +700,22 @@ export default function RFQPage() {
 
               {/* Form Actions */}
               <div className="flex justify-end gap-3 pt-4 border-t">
-                <Button
+                <button
                   type="button"
-                  variant="secondary"
                   onClick={() => {
                     setShowCreateModal(false);
                     resetForm();
                   }}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors"
                 >
                   Cancel
-                </Button>
-                <Button type="submit">
+                </button>
+                <button 
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                >
                   Create RFQ
-                </Button>
+                </button>
               </div>
             </form>
           </div>

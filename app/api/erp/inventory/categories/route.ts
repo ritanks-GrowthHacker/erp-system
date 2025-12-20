@@ -3,6 +3,7 @@ import { erpDb } from '@/lib/db';
 import { productCategories } from '@/lib/db/schema';
 import { requireErpAccess, hasPermission } from '@/lib/auth';
 import { eq, and, like, isNull, desc } from 'drizzle-orm';
+import { handleDatabaseError, logDatabaseError } from '@/lib/db/error-handler';
 
 // GET /api/erp/inventory/categories
 export async function GET(req: NextRequest) {
@@ -44,12 +45,10 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({ categories });
-  } catch (err: any) {
-    console.error('Error fetching categories:', err);
-    return NextResponse.json(
-      { error: 'Failed to fetch categories' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Fetching categories', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }
 
@@ -107,11 +106,9 @@ export async function POST(req: NextRequest) {
       .returning();
 
     return NextResponse.json({ category: newCategory }, { status: 201 });
-  } catch (err: any) {
-    console.error('Error creating category:', err);
-    return NextResponse.json(
-      { error: 'Failed to create category' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Creating category', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }

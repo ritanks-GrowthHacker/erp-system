@@ -1,18 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/form';
 import { getAuthToken } from '@/lib/utils/token';
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from '@/components/ui/table';
 
 interface VendorInvoice {
   id: string;
@@ -308,129 +298,122 @@ export default function InvoicesPage() {
   const totals = calculateTotals();
 
   return (
-    <div className="space-y-6">
+    <div className="p-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Vendor Invoices</h1>
-          <p className="text-gray-600 mt-1">Manage supplier bills and payments</p>
+          <h2 className="text-2xl font-semibold text-gray-900">Vendor Invoices</h2>
+          <p className="text-sm text-gray-500 mt-1">Manage supplier bills and payments</p>
         </div>
-        <Button onClick={() => setShowCreateModal(true)}>+ Record Invoice</Button>
+        <button 
+          onClick={() => setShowCreateModal(true)}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+        >
+          + Record Invoice
+        </button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-sm text-gray-500">Pending</div>
-            <div className="text-2xl font-bold text-yellow-600 mt-1">
-              {invoices.filter(i => i.status === 'pending').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-sm text-gray-500">Approved</div>
-            <div className="text-2xl font-bold text-blue-600 mt-1">
-              {invoices.filter(i => i.status === 'approved').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-sm text-gray-500">Paid</div>
-            <div className="text-2xl font-bold text-green-600 mt-1">
-              {invoices.filter(i => i.status === 'paid').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-sm text-gray-500">Overdue</div>
-            <div className="text-2xl font-bold text-red-600 mt-1">
-              {invoices.filter(i => i.status === 'overdue').length}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Invoices List */}
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Invoices</CardTitle>
-            <Input placeholder="Search invoices..." className="w-64" />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Pending</div>
+          <div className="text-2xl font-bold text-yellow-600">
+            {invoices.filter(i => i.status === 'pending').length}
           </div>
-        </CardHeader>
-        <CardContent>
+        </div>
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Approved</div>
+          <div className="text-2xl font-bold text-blue-600">
+            {invoices.filter(i => i.status === 'approved').length}
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Paid</div>
+          <div className="text-2xl font-bold text-green-600">
+            {invoices.filter(i => i.status === 'paid').length}
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Overdue</div>
+          <div className="text-2xl font-bold text-red-600">
+            {invoices.filter(i => i.status === 'overdue').length}
+          </div>
+        </div>
+      </div>
+
+      {/* Invoices Table */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+          <h3 className="text-base font-semibold text-gray-900">Invoices</h3>
+          <input placeholder="Search invoices..." className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm" />
+        </div>
+        <div className="overflow-x-auto">
           {loading ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-12 text-gray-500">
               Loading invoices...
             </div>
           ) : invoices.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-12 text-gray-500">
               No invoices found. Record your first invoice.
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Invoice #</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead>PO Reference</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead>Total Amount</TableHead>
-                  <TableHead>Amount Paid</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Invoice #</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Supplier</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">PO Reference</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Due Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Total Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Amount Paid</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
                 {invoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
-                    <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
-                    <TableCell>{new Date(invoice.invoiceDate).toLocaleDateString()}</TableCell>
-                    <TableCell>{invoice.supplier.name}</TableCell>
-                    <TableCell>{invoice.purchaseOrder?.poNumber || '-'}</TableCell>
-                    <TableCell>{invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : '-'}</TableCell>
-                    <TableCell>₹{parseFloat(invoice.totalAmount).toFixed(2)}</TableCell>
-                    <TableCell>₹{parseFloat(invoice.amountPaid).toFixed(2)}</TableCell>
-                    <TableCell>
+                  <tr key={invoice.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{invoice.invoiceNumber}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(invoice.invoiceDate).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{invoice.supplier.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{invoice.purchaseOrder?.poNumber || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{parseFloat(invoice.totalAmount).toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{parseFloat(invoice.amountPaid).toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(invoice.status)}`}>
                         {invoice.status.toUpperCase()}
                       </span>
-                    </TableCell>
-                    <TableCell>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex gap-2">
-                        <Button variant="ghost" size="sm">View</Button>
-                        <Button variant="ghost" size="sm">Pay</Button>
+                        <button className="text-blue-600 hover:text-blue-800 font-medium">View</button>
+                        <button className="text-green-600 hover:text-green-800 font-medium">Pay</button>
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 ))}
-              </TableBody>
-            </Table>
+              </tbody>
+            </table>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Create Invoice Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-          <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full m-4 max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold">Record Vendor Invoice</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center rounded-t-xl">
+              <h2 className="text-xl font-semibold text-gray-900">Record Vendor Invoice</h2>
               <button
                 onClick={() => {
                   setShowCreateModal(false);
                   resetForm();
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                ×
               </button>
             </div>
 
@@ -551,9 +534,13 @@ export default function InvoicesPage() {
               <div>
                 <div className="flex justify-between items-center mb-3">
                   <h3 className="text-lg font-semibold">Invoice Items</h3>
-                  <Button type="button" onClick={addLineItem} variant="secondary">
+                  <button 
+                    type="button" 
+                    onClick={addLineItem}
+                    className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors text-sm"
+                  >
                     + Add Item
-                  </Button>
+                  </button>
                 </div>
 
                 {invoiceLines.length === 0 ? (
@@ -695,19 +682,22 @@ export default function InvoicesPage() {
 
               {/* Form Actions */}
               <div className="flex justify-end gap-3 pt-4 border-t">
-                <Button
+                <button
                   type="button"
-                  variant="secondary"
                   onClick={() => {
                     setShowCreateModal(false);
                     resetForm();
                   }}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors"
                 >
                   Cancel
-                </Button>
-                <Button type="submit">
+                </button>
+                <button 
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                >
                   Record Invoice
-                </Button>
+                </button>
               </div>
             </form>
           </div>

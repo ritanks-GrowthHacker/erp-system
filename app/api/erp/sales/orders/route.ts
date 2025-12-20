@@ -3,6 +3,7 @@ import { erpDb } from '@/lib/db';
 import { salesOrders, salesOrderLines } from '@/lib/db/schema';
 import { requireErpAccess, hasPermission } from '@/lib/auth';
 import { eq, and, desc } from 'drizzle-orm';
+import { handleDatabaseError, logDatabaseError } from '@/lib/db/error-handler';
 
 // GET /api/erp/sales/orders
 export async function GET(req: NextRequest) {
@@ -46,12 +47,10 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({ salesOrders: orders });
-  } catch (err: any) {
-    console.error('Error fetching sales orders:', err);
-    return NextResponse.json(
-      { error: 'Failed to fetch sales orders' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Fetching sales orders', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }
 
@@ -144,11 +143,9 @@ export async function POST(req: NextRequest) {
       { salesOrder: { ...newSO, lines: soLines } },
       { status: 201 }
     );
-  } catch (err: any) {
-    console.error('Error creating sales order:', err);
-    return NextResponse.json(
-      { error: 'Failed to create sales order' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Creating sales order', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }

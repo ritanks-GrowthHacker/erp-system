@@ -7,8 +7,9 @@ import { eq, and } from 'drizzle-orm';
 // GET /api/erp/inventory/categories/[id]
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const { user, error } = await requireErpAccess(req);
   if (error) return error;
 
@@ -22,7 +23,7 @@ export async function GET(
   try {
     const category = await erpDb.query.productCategories.findFirst({
       where: and(
-        eq(productCategories.id, params.id),
+        eq(productCategories.id, id),
         eq(productCategories.erpOrganizationId, user.erpOrganizationId)
       ),
     });
@@ -47,8 +48,9 @@ export async function GET(
 // PUT /api/erp/inventory/categories/[id]
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const { user, error } = await requireErpAccess(req, 'user');
   if (error) return error;
 
@@ -66,7 +68,7 @@ export async function PUT(
     // Check if category exists and belongs to org
     const existing = await erpDb.query.productCategories.findFirst({
       where: and(
-        eq(productCategories.id, params.id),
+        eq(productCategories.id, id),
         eq(productCategories.erpOrganizationId, user.erpOrganizationId)
       ),
     });
@@ -89,7 +91,7 @@ export async function PUT(
         isActive: isActive ?? existing.isActive,
         updatedAt: new Date(),
       })
-      .where(eq(productCategories.id, params.id))
+      .where(eq(productCategories.id, id))
       .returning();
 
     return NextResponse.json({ category: updated });
@@ -105,8 +107,9 @@ export async function PUT(
 // DELETE /api/erp/inventory/categories/[id]
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const { user, error } = await requireErpAccess(req, 'manager');
   if (error) return error;
 
@@ -120,7 +123,7 @@ export async function DELETE(
   try {
     const existing = await erpDb.query.productCategories.findFirst({
       where: and(
-        eq(productCategories.id, params.id),
+        eq(productCategories.id, id),
         eq(productCategories.erpOrganizationId, user.erpOrganizationId)
       ),
     });
@@ -134,7 +137,7 @@ export async function DELETE(
 
     await erpDb
       .delete(productCategories)
-      .where(eq(productCategories.id, params.id));
+      .where(eq(productCategories.id, id));
 
     return NextResponse.json({ message: 'Category deleted successfully' });
   } catch (err: any) {

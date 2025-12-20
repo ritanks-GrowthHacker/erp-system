@@ -3,6 +3,7 @@ import { erpDb } from '@/lib/db';
 import { requestForQuotations, rfqLines, rfqSuppliers } from '@/lib/db/schema';
 import { requireErpAccess, hasPermission } from '@/lib/auth';
 import { eq, and, desc } from 'drizzle-orm';
+import { handleDatabaseError, logDatabaseError } from '@/lib/db/error-handler';
 
 // GET /api/erp/purchasing/rfq
 export async function GET(req: NextRequest) {
@@ -44,12 +45,10 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({ rfqs });
-  } catch (err: any) {
-    console.error('Error fetching RFQs:', err);
-    return NextResponse.json(
-      { error: 'Failed to fetch RFQs' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Fetching RFQs', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }
 
@@ -123,11 +122,9 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ rfq: newRFQ }, { status: 201 });
-  } catch (err: any) {
-    console.error('Error creating RFQ:', err);
-    return NextResponse.json(
-      { error: 'Failed to create RFQ' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logDatabaseError('Creating RFQ', error);
+    const dbError = handleDatabaseError(error);
+    return NextResponse.json({ error: dbError.message }, { status: dbError.statusCode });
   }
 }

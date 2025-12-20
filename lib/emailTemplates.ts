@@ -336,3 +336,237 @@ export const getSupplierWelcomeEmailTemplate = (data: SupplierWelcome): string =
     </html>
   `;
 };
+
+// Stock Alert Email Template
+interface StockAlert {
+  productName: string;
+  productSku: string;
+  currentQuantity: string;
+  reorderPoint: string;
+  warehouseName: string;
+  suggestedOrderQuantity?: string;
+}
+
+export const getStockAlertEmailTemplate = (
+  alert: StockAlert,
+  organizationName: string,
+  organizationLogo?: string
+): string => {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Low Stock Alert - ${alert.productName}</title>
+    </head>
+    <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f3f4f6;">
+      <div style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #f59e0b 0%, #dc2626 100%); padding: 30px; text-align: center;">
+          ${organizationLogo ? `<img src="${organizationLogo}" alt="${organizationName}" style="max-width: 120px; margin-bottom: 15px; background-color: white; padding: 8px; border-radius: 6px;">` : ''}
+          <h1 style="color: #ffffff; margin: 0; font-size: 26px;">⚠️ Low Stock Alert</h1>
+          <p style="color: #fef3c7; margin: 10px 0 0 0; font-size: 14px;">${organizationName}</p>
+        </div>
+
+        <!-- Content -->
+        <div style="padding: 30px;">
+          <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin-bottom: 25px; border-radius: 4px;">
+            <p style="margin: 0; color: #92400e; font-size: 15px; font-weight: 600;">
+              ⚡ Action Required: Stock below reorder point
+            </p>
+          </div>
+
+          <h2 style="color: #1f2937; margin: 0 0 20px 0; font-size: 20px;">Product Details</h2>
+          
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+              <td style="padding: 12px 0; color: #6b7280; font-size: 14px;">Product Name:</td>
+              <td style="padding: 12px 0; color: #1f2937; font-weight: 600; text-align: right;">${alert.productName}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+              <td style="padding: 12px 0; color: #6b7280; font-size: 14px;">SKU:</td>
+              <td style="padding: 12px 0; color: #1f2937; font-weight: 600; text-align: right;">${alert.productSku}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+              <td style="padding: 12px 0; color: #6b7280; font-size: 14px;">Warehouse:</td>
+              <td style="padding: 12px 0; color: #1f2937; font-weight: 600; text-align: right;">${alert.warehouseName}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+              <td style="padding: 12px 0; color: #6b7280; font-size: 14px;">Current Stock:</td>
+              <td style="padding: 12px 0; color: #dc2626; font-weight: 700; text-align: right; font-size: 16px;">${alert.currentQuantity} units</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+              <td style="padding: 12px 0; color: #6b7280; font-size: 14px;">Reorder Point:</td>
+              <td style="padding: 12px 0; color: #1f2937; font-weight: 600; text-align: right;">${alert.reorderPoint} units</td>
+            </tr>
+            ${alert.suggestedOrderQuantity ? `
+            <tr>
+              <td style="padding: 12px 0; color: #6b7280; font-size: 14px;">Suggested Order:</td>
+              <td style="padding: 12px 0; color: #059669; font-weight: 700; text-align: right; font-size: 16px;">${alert.suggestedOrderQuantity} units</td>
+            </tr>
+            ` : ''}
+          </table>
+
+          <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
+            <p style="margin: 0 0 10px 0; color: #1e40af; font-size: 14px; font-weight: 600;">📋 Recommended Actions:</p>
+            <ul style="margin: 0; padding-left: 20px; color: #1e40af; font-size: 14px; line-height: 1.6;">
+              <li>Review supplier quotations</li>
+              <li>Create purchase order</li>
+              <li>Check for pending deliveries</li>
+              <li>Consider temporary stock transfer</li>
+            </ul>
+          </div>
+
+          <p style="color: #4b5563; line-height: 1.6; margin: 0; font-size: 14px;">
+            This automated alert helps prevent stock-outs. Please take necessary action to maintain optimal inventory levels.
+          </p>
+        </div>
+
+        <!-- Footer -->
+        <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+          <p style="margin: 0; color: #6b7280; font-size: 12px;">
+            Automated Inventory Alert from ${organizationName} ERP System
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+};
+
+// Quotation Email Template
+interface Quotation {
+  quotationNumber: string;
+  quotationDate: string;
+  validUntil?: string;
+  customerName: string;
+  customerEmail: string;
+  totalAmount: string;
+  currencyCode: string;
+  lines: Array<{
+    productName: string;
+    description?: string;
+    quantity: string;
+    unitPrice: string;
+    total: string;
+  }>;
+  notes?: string;
+}
+
+export const getQuotationEmailTemplate = (
+  quotation: Quotation,
+  organizationName: string,
+  organizationLogo?: string
+): string => {
+  const lineItemsHtml = quotation.lines.map((line, index) => `
+    <tr>
+      <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${index + 1}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">
+        <strong>${line.productName}</strong>
+        ${line.description ? `<br><span style="color: #6b7280; font-size: 0.875rem;">${line.description}</span>` : ''}
+      </td>
+      <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: center;">${line.quantity}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">${quotation.currencyCode} ${line.unitPrice}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;"><strong>${quotation.currencyCode} ${line.total}</strong></td>
+    </tr>
+  `).join('');
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Quotation - ${quotation.quotationNumber}</title>
+    </head>
+    <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f3f4f6;">
+      <div style="max-width: 800px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); padding: 30px; text-align: center;">
+          ${organizationLogo ? `<img src="${organizationLogo}" alt="${organizationName}" style="max-width: 150px; margin-bottom: 15px;">` : ''}
+          <h1 style="color: #ffffff; margin: 0; font-size: 28px;">${organizationName}</h1>
+          <p style="color: #bfdbfe; margin: 10px 0 0 0; font-size: 16px;">Price Quotation</p>
+        </div>
+
+        <!-- Quotation Details -->
+        <div style="padding: 30px;">
+          <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 20px; margin-bottom: 30px;">
+            <h2 style="margin: 0 0 15px 0; color: #1f2937; font-size: 20px;">Quotation #${quotation.quotationNumber}</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+              <div>
+                <p style="margin: 5px 0; color: #6b7280; font-size: 14px;">Date</p>
+                <p style="margin: 5px 0; color: #1f2937; font-weight: 600;">${quotation.quotationDate}</p>
+              </div>
+              ${quotation.validUntil ? `
+              <div>
+                <p style="margin: 5px 0; color: #6b7280; font-size: 14px;">Valid Until</p>
+                <p style="margin: 5px 0; color: #dc2626; font-weight: 600;">${quotation.validUntil}</p>
+              </div>
+              ` : ''}
+            </div>
+          </div>
+
+          <h3 style="color: #1f2937; margin: 0 0 15px 0;">Dear ${quotation.customerName},</h3>
+          <p style="color: #4b5563; line-height: 1.6; margin-bottom: 25px;">
+            Thank you for your interest in our products. We are pleased to submit the following quotation for your consideration.
+          </p>
+
+          <!-- Line Items Table -->
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+            <thead>
+              <tr style="background-color: #f3f4f6;">
+                <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; width: 5%;">#</th>
+                <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb;">Product</th>
+                <th style="padding: 12px; text-align: center; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; width: 12%;">Quantity</th>
+                <th style="padding: 12px; text-align: right; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; width: 15%;">Unit Price</th>
+                <th style="padding: 12px; text-align: right; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; width: 15%;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${lineItemsHtml}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="4" style="padding: 15px; text-align: right; font-weight: 600; color: #1f2937; border-top: 2px solid #e5e7eb;">Total Amount:</td>
+                <td style="padding: 15px; text-align: right; font-weight: 700; color: #3b82f6; font-size: 18px; border-top: 2px solid #e5e7eb;">${quotation.currencyCode} ${quotation.totalAmount}</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          ${quotation.notes ? `
+          <div style="background-color: #f9fafb; padding: 15px; border-radius: 6px; margin-bottom: 25px;">
+            <p style="margin: 0; color: #374151; font-size: 14px;"><strong>Notes:</strong></p>
+            <p style="margin: 10px 0 0 0; color: #4b5563; line-height: 1.6;">${quotation.notes}</p>
+          </div>
+          ` : ''}
+
+          <div style="background-color: #dcfce7; border: 1px solid #86efac; border-radius: 6px; padding: 15px; margin-bottom: 25px;">
+            <p style="margin: 0; color: #166534; font-size: 14px;">
+              <strong>✓ This quotation is valid until ${quotation.validUntil || 'further notice'}</strong><br>
+              Please reply to this email or contact us to confirm your order.
+            </p>
+          </div>
+
+          <p style="color: #4b5563; line-height: 1.6; margin-bottom: 10px;">
+            We look forward to doing business with you.
+          </p>
+          <p style="color: #4b5563; line-height: 1.6; margin: 0;">
+            Best regards,<br>
+            <strong>${organizationName}</strong>
+          </p>
+        </div>
+
+        <!-- Footer -->
+        <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+          <p style="margin: 0; color: #6b7280; font-size: 12px;">
+            This is an automated email. Please reply if you have any questions.
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+};

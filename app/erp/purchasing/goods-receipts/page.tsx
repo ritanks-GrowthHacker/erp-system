@@ -1,18 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/form';
 import { getAuthToken } from '@/lib/utils/token';
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from '@/components/ui/table';
 
 interface GoodsReceipt {
   id: string;
@@ -388,54 +378,51 @@ export default function GoodsReceiptsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Goods Receipts</h1>
           <p className="text-gray-600 mt-1">Receive and quality check incoming inventory</p>
         </div>
-        <Button onClick={() => setShowCreateModal(true)}>+ Receive Goods</Button>
+        <button 
+          onClick={() => setShowCreateModal(true)}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+        >
+          + Receive Goods
+        </button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-sm text-gray-500">Received</div>
-            <div className="text-2xl font-bold text-blue-600 mt-1">
-              {receipts.filter(r => r.status === 'received').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-sm text-gray-500">Quality Check</div>
-            <div className="text-2xl font-bold text-yellow-600 mt-1">
-              {receipts.filter(r => r.status === 'quality_check').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-sm text-gray-500">Accepted</div>
-            <div className="text-2xl font-bold text-green-600 mt-1">
-              {receipts.filter(r => r.status === 'accepted').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-sm text-gray-500">Rejected</div>
-            <div className="text-2xl font-bold text-red-600 mt-1">
-              {receipts.filter(r => r.status === 'rejected').length}
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Received</div>
+          <div className="text-2xl font-bold text-blue-600">
+            {receipts.filter(r => r.status === 'received').length}
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Quality Check</div>
+          <div className="text-2xl font-bold text-yellow-600">
+            {receipts.filter(r => r.status === 'quality_check').length}
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Accepted</div>
+          <div className="text-2xl font-bold text-green-600">
+            {receipts.filter(r => r.status === 'accepted').length}
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Rejected</div>
+          <div className="text-2xl font-bold text-red-600">
+            {receipts.filter(r => r.status === 'rejected').length}
+          </div>
+        </div>
       </div>
 
       {/* Receipts List */}
-      <Card>
-        <CardHeader>
+      <div className="bg-white rounded-xl border border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex justify-between items-center">
-            <CardTitle>Goods Receipts</CardTitle>
+            <h2 className="text-lg font-semibold text-gray-900">Goods Receipts</h2>
             <Input placeholder="Search receipts..." className="w-64" />
           </div>
-        </CardHeader>
-        <CardContent>
+        </div>
+        <div className="p-6">
           {loading ? (
             <div className="text-center py-8 text-gray-500">
               Loading goods receipts...
@@ -445,52 +432,53 @@ export default function GoodsReceiptsPage() {
               No receipts found. Receive goods from purchase orders.
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Receipt #</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>PO Number</TableHead>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead>Warehouse</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {receipts.map((receipt) => (
-                  <TableRow key={receipt.id}>
-                    <TableCell className="font-medium">{receipt.receiptNumber}</TableCell>
-                    <TableCell>{new Date(receipt.receiptDate).toLocaleDateString()}</TableCell>
-                    <TableCell>{receipt.purchaseOrder.poNumber}</TableCell>
-                    <TableCell>{receipt.supplier.name}</TableCell>
-                    <TableCell>{receipt.warehouse.name}</TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(receipt.status)}`}>
-                        {receipt.status.replace('_', ' ').toUpperCase()}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm">View</Button>
-                        {receipt.status === 'received' && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleAcceptReceipt(receipt.id)}
-                          >
-                            Accept/Reject
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Receipt #</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Date</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">PO Number</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Supplier</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Warehouse</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Status</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {receipts.map((receipt) => (
+                    <tr key={receipt.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-900">{receipt.receiptNumber}</td>
+                      <td className="px-4 py-3 text-gray-600">{new Date(receipt.receiptDate).toLocaleDateString()}</td>
+                      <td className="px-4 py-3 text-gray-600">{receipt.purchaseOrder.poNumber}</td>
+                      <td className="px-4 py-3 text-gray-600">{receipt.supplier.name}</td>
+                      <td className="px-4 py-3 text-gray-600">{receipt.warehouse.name}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(receipt.status)}`}>
+                          {receipt.status.replace('_', ' ').toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2">
+                          <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">View</button>
+                          {receipt.status === 'received' && (
+                            <button 
+                              onClick={() => handleAcceptReceipt(receipt.id)}
+                              className="text-sm text-green-600 hover:text-green-800 font-medium"
+                            >
+                              Accept/Reject
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Create Receipt Modal */}
       {showCreateModal && (
@@ -646,19 +634,22 @@ export default function GoodsReceiptsPage() {
 
               {/* Form Actions */}
               <div className="flex justify-end gap-3 pt-4 border-t">
-                <Button
+                <button
                   type="button"
-                  variant="secondary"
                   onClick={() => {
                     setShowCreateModal(false);
                     resetForm();
                   }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Cancel
-                </Button>
-                <Button type="submit">
+                </button>
+                <button 
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                >
                   Receive Goods
-                </Button>
+                </button>
               </div>
             </form>
           </div>
@@ -777,19 +768,22 @@ export default function GoodsReceiptsPage() {
 
               {/* Form Actions */}
               <div className="flex justify-end gap-3 pt-4 border-t">
-                <Button
+                <button
                   type="button"
-                  variant="secondary"
                   onClick={() => {
                     setShowAcceptModal(false);
                     setSelectedReceipt(null);
                   }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Cancel
-                </Button>
-                <Button type="submit">
+                </button>
+                <button 
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                >
                   Accept Receipt & Update Stock
-                </Button>
+                </button>
               </div>
             </form>
           </div>

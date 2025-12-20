@@ -18,19 +18,26 @@ export function Input({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-semibold text-text-primary mb-2">
           {label}
         </label>
       )}
       <input
-        className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-          error ? 'border-red-500' : 'border-gray-300'
-        } ${className}`}
+        className={`w-full px-4 py-2.5 bg-surface-workspace border-2 rounded-lg text-text-body placeholder:text-text-muted ${
+          error ? 'border-[#EF4444] focus:ring-[#EF4444]' : ''
+        } ${props.disabled ? 'bg-gray-50 cursor-not-allowed opacity-60' : ''} ${className}`}
         {...props}
       />
-      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+      {error && (
+        <p className="mt-1.5 text-sm text-[#EF4444] flex items-center gap-1">
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+          {error}
+        </p>
+      )}
       {helperText && !error && (
-        <p className="mt-1 text-sm text-gray-500">{helperText}</p>
+        <p className="mt-1.5 text-xs text-text-muted">{helperText}</p>
       )}
     </div>
   );
@@ -52,13 +59,13 @@ export function Select({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-semibold text-text-primary mb-2">
           {label}
         </label>
       )}
       <select
-        className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-          error ? 'border-red-500' : 'border-gray-300'
+        className={`w-full px-4 py-2.5 bg-surface-workspace border-2 rounded-lg text-text-body transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#1E40AF] focus:border-[#1E40AF] hover:border-[#1E40AF]/50 cursor-pointer ${
+          error ? 'border-[#EF4444] focus:ring-[#EF4444]' : 'border-border-default'
         } ${className}`}
         {...props}
       >
@@ -68,7 +75,14 @@ export function Select({
           </option>
         ))}
       </select>
-      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+      {error && (
+        <p className="mt-1.5 text-sm text-[#EF4444] flex items-center gap-1">
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -89,18 +103,25 @@ export function Textarea({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-semibold text-text-primary mb-2">
           {label}
         </label>
       )}
       <textarea
         rows={rows}
-        className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-          error ? 'border-red-500' : 'border-gray-300'
+        className={`w-full px-4 py-2.5 bg-surface-workspace border-2 rounded-lg text-text-body placeholder:text-text-muted  ${
+          error ? 'border-[#EF4444] focus:ring-[#EF4444]' : ''
         } ${className}`}
         {...props}
       />
-      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+      {error && (
+        <p className="mt-1.5 text-sm text-[#EF4444] flex items-center gap-1">
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+          {error}
+        </p>
+      )}
     </div>
   );
 }

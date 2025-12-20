@@ -517,6 +517,30 @@ CREATE TABLE erp_activity_logs (
 CREATE INDEX idx_erp_orgs_main_org ON erp_organizations(main_org_id);
 CREATE INDEX idx_erp_depts_main_dept ON erp_departments(main_department_id);
 CREATE INDEX idx_erp_user_access_user ON erp_user_access(main_user_id);
+-- ============================================
+-- SALES HISTORY & ANALYTICS
+-- ============================================
+
+-- Sales History for Forecasting - Aggregated sales data
+CREATE TABLE sales_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  erp_organization_id UUID NOT NULL REFERENCES erp_organizations(id) ON DELETE CASCADE,
+  product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  warehouse_id UUID REFERENCES warehouses(id) ON DELETE CASCADE,
+  period_start DATE NOT NULL,
+  period_end DATE NOT NULL,
+  quantity_sold DECIMAL(15,2) NOT NULL DEFAULT 0,
+  revenue DECIMAL(15,2) DEFAULT 0,
+  cost_of_goods_sold DECIMAL(15,2) DEFAULT 0,
+  number_of_orders INTEGER DEFAULT 0,
+  average_order_quantity DECIMAL(15,2),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ============================================
+-- INDEXES
+-- ============================================
+
 CREATE INDEX idx_erp_user_access_org ON erp_user_access(erp_organization_id);
 CREATE INDEX idx_warehouses_org ON warehouses(erp_organization_id);
 CREATE INDEX idx_products_org ON products(erp_organization_id);
@@ -532,6 +556,8 @@ CREATE INDEX idx_sales_orders_customer ON sales_orders(customer_id);
 CREATE INDEX idx_activity_logs_org ON erp_activity_logs(erp_organization_id);
 CREATE INDEX idx_activity_logs_user ON erp_activity_logs(user_id);
 CREATE INDEX idx_activity_logs_entity ON erp_activity_logs(entity_type, entity_id);
+CREATE INDEX idx_sales_history_product ON sales_history(product_id);
+CREATE INDEX idx_sales_history_period ON sales_history(period_start, period_end);
 
 -- Note: Default units of measure should be created when an organization is onboarded
 -- Example SQL to insert default UOMs for a new organization:
