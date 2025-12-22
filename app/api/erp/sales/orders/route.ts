@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { erpDb } from '@/lib/db';
-import { salesOrders, salesOrderLines } from '@/lib/db/schema';
+import { salesOrders, salesOrderLines, salesHistory, stockLevels } from '@/lib/db/schema';
 import { requireErpAccess, hasPermission } from '@/lib/auth';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { handleDatabaseError, logDatabaseError } from '@/lib/db/error-handler';
 
 // GET /api/erp/sales/orders

@@ -36,6 +36,8 @@ export default function StockLevelsPage() {
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAssignForm, setShowAssignForm] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
   const [assignForm, setAssignForm] = useState({
     productId: '',
     warehouseId: '',
@@ -172,6 +174,16 @@ export default function StockLevelsPage() {
     level.product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     level.product.sku.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Pagination
+  const totalPages = Math.ceil(filteredStockLevels.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedStockLevels = filteredStockLevels.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   if (loading) {
     return (
@@ -390,7 +402,7 @@ export default function StockLevelsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredStockLevels.map((level) => {
+                paginatedStockLevels.map((level) => {
                   const status = getStockStatus(level);
                   const available = parseFloat(level.quantityOnHand) - parseFloat(level.quantityReserved);
                   
@@ -415,6 +427,34 @@ export default function StockLevelsPage() {
               )}
             </TableBody>
           </Table>
+
+          {/* Pagination */}
+          {filteredStockLevels.length > 0 && (
+            <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                Showing {startIndex + 1} to {Math.min(endIndex, filteredStockLevels.length)} of {filteredStockLevels.length} items
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <span className="px-3 py-1.5 text-sm text-gray-700">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

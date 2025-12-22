@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { getAuthToken } from '@/lib/utils/token';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Eye } from 'lucide-react';
+import AdjustmentModal from '@/components/modal/AdjustmentModal';
 
 interface StockAdjustment {
   id: string;
@@ -28,8 +29,7 @@ export default function AdjustmentsPage() {
   const [adjustments, setAdjustments] = useState<StockAdjustment[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState('');
-
-
+  const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
 
   useEffect(() => {
     fetchAdjustments();
@@ -130,13 +130,20 @@ export default function AdjustmentsPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Stock Adjustments</h1>
         <button
-          onClick={() => (window.location.href = '/erp/inventory/adjustments/new')}
+          onClick={() => setShowAdjustmentModal(true)}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
         >
           + New Adjustment
         </button>
       </div>
 
+      {/* Adjustment Modal */}
+      <AdjustmentModal
+        isOpen={showAdjustmentModal}
+        onClose={() => setShowAdjustmentModal(false)}
+        onSuccess={fetchAdjustments}
+      />
+      /
       {/* Filters */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="p-6">

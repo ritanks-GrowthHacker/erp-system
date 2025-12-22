@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { getAuthToken } from '@/lib/utils/token';
 import { useRouter } from 'next/navigation';
 import ReorderRuleModal from '@/components/modal/ReorderRuleModal';
+import React from 'react';
 
 export default function ProcurementDashboard() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function ProcurementDashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('suggestions');
   const [showRuleModal, setShowRuleModal] = useState(false);
+  const [expandedRule, setExpandedRule] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -322,42 +324,81 @@ export default function ProcurementDashboard() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                 <tbody className="bg-white divide-y divide-gray-200">
                     {reorderRules.map((rule: any) => (
-                      <tr key={rule.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{rule.product_name}</div>
-                          <div className="text-sm text-gray-500">{rule.product_sku}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {rule.warehouse_name || 'All Warehouses'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`${
-                            parseFloat(rule.current_stock) <= parseFloat(rule.reorder_point)
-                              ? 'text-red-600 font-semibold'
-                              : 'text-gray-900'
-                          }`}>
-                            {parseFloat(rule.current_stock || 0).toFixed(2)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {parseFloat(rule.reorder_point).toFixed(2)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">
-                          {parseFloat(rule.reorder_quantity).toFixed(2)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {rule.lead_time_days} days
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                            rule.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {rule.is_active ? 'Active' : 'Inactive'}
-                          </span>
-                        </td>
-                      </tr>
+                      <React.Fragment key={rule.id}>
+                        <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => setExpandedRule(expandedRule === rule.id ? null : rule.id)}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <span className="text-blue-600">{expandedRule === rule.id ? '▼' : '▶'}</span>
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">{rule.product_name}</div>
+                                <div className="text-sm text-gray-500">{rule.product_sku}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {rule.warehouse_name || 'All Warehouses'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <span className={`${
+                              parseFloat(rule.current_stock) <= parseFloat(rule.reorder_point)
+                                ? 'text-red-600 font-semibold'
+                                : 'text-gray-900'
+                            }`}>
+                              {parseFloat(rule.current_stock || 0).toFixed(2)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {parseFloat(rule.reorder_point).toFixed(2)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">
+                            {parseFloat(rule.reorder_quantity).toFixed(2)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {rule.lead_time_days} days
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                              rule.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {rule.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                        </tr>
+                        {expandedRule === rule.id && (
+                          <tr>
+                            <td colSpan={7} className="px-6 py-4 bg-gray-50">
+                              <div className="grid grid-cols-3 gap-4">
+                                <div>
+                                  <div className="text-xs font-semibold text-gray-500 mb-1">Preferred Supplier</div>
+                                  <div className="text-sm text-gray-900">{rule.preferred_supplier_name || 'N/A'}</div>
+                                </div>
+                                <div>
+                                  <div className="text-xs font-semibold text-gray-500 mb-1">Safety Stock</div>
+                                  <div className="text-sm text-gray-900">{rule.safety_stock || 0}</div>
+                                </div>
+                                <div>
+                                  <div className="text-xs font-semibold text-gray-500 mb-1">Route Preference</div>
+                                  <div className="text-sm text-gray-900">{rule.route_preference || 'Any'}</div>
+                                </div>
+                                <div>
+                                  <div className="text-xs font-semibold text-gray-500 mb-1">Created</div>
+                                  <div className="text-sm text-gray-900">{new Date(rule.created_at).toLocaleString('en-IN')}</div>
+                                </div>
+                                <div>
+                                  <div className="text-xs font-semibold text-gray-500 mb-1">Last Modified</div>
+                                  <div className="text-sm text-gray-900">{new Date(rule.updated_at).toLocaleString('en-IN')}</div>
+                                </div>
+                                <div>
+                                  <div className="text-xs font-semibold text-gray-500 mb-1">Notes</div>
+                                  <div className="text-sm text-gray-900">{rule.notes || 'N/A'}</div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>

@@ -2,3 +2,4 @@
 export * from './core';
 export * from './inventory';
 export * from './purchasing-sales';
+export * from './manufacturing';

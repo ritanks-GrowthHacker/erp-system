@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { getAuthToken } from '@/lib/utils/token';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Eye } from 'lucide-react';
+import StockMovementModal from '@/components/modal/StockMovementModal';
 
 interface StockMovement {
   id: string;
@@ -28,11 +29,18 @@ export default function MovementsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedType, setSelectedType] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const itemsPerPage = 20;
 
 
 
   useEffect(() => {
     fetchMovements();
+  }, [selectedType, selectedStatus]);
+
+  useEffect(() => {
+    setCurrentPage(1);
   }, [selectedType, selectedStatus]);
 
   const fetchMovements = async () => {
@@ -95,6 +103,12 @@ export default function MovementsPage() {
     return labels[type] || type;
   };
 
+  // Pagination calculation
+  const totalPages = Math.ceil(movements.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedMovements = movements.slice(startIndex, endIndex);
+
   if (loading) {
     return (
       <div className="p-6">
@@ -111,12 +125,19 @@ export default function MovementsPage() {
           <p className="text-sm text-gray-500 mt-1">Track inventory transfers and changes</p>
         </div>
         <button 
-          onClick={() => (window.location.href = '/erp/inventory/movements/new')}
+          onClick={() => setShowCreateModal(true)}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
         >
           + New Movement
         </button>
       </div>
+
+      {/* Create Movement Modal */}
+      <StockMovementModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={fetchMovements}
+      />
 
       {/* Filters */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
@@ -183,7 +204,7 @@ export default function MovementsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                movements.map((movement) => (
+                paginatedMovements.map((movement) => (
                   <TableRow key={movement.id} className="hover:bg-gray-50/50">
                     <TableCell>
                       <div className="text-sm">
@@ -227,13 +248,7 @@ export default function MovementsPage() {
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
-                      <button
-                        onClick={() => (window.location.href = `/erp/inventory/movements/${movement.id}`)}
-                        className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium"
-                      >
-                        <Eye className="w-4 h-4" />
-                        View
-                      </button>
+                      <span className="text-sm text-gray-600">-</span>
                     </TableCell>
                   </TableRow>
                 ))
@@ -241,6 +256,33 @@ export default function MovementsPage() {
             </TableBody>
           </Table>
         </div>
+        
+        {movements.length > 0 && (
+          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              Showing {startIndex + 1} to {Math.min(endIndex, movements.length)} of {movements.length} items
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <span className="px-3 py-1.5 text-sm text-gray-700">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

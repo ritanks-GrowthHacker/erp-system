@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { erpDb } from '@/lib/db';
-import { products, productCategories } from '@/lib/db/schema';
+import { products, productCategories, productSuppliers } from '@/lib/db/schema';
 import { requireErpAccess, hasPermission } from '@/lib/auth';
-import { eq, and, like, desc } from 'drizzle-orm';
+import { eq, and, like, desc, sql } from 'drizzle-orm';
 import { handleDatabaseError, logDatabaseError } from '@/lib/db/error-handler';
 
 // GET /api/erp/inventory/products
@@ -52,12 +52,30 @@ export async function GET(req: NextRequest) {
       orderBy: [desc(products.createdAt)],
     });
 
+    // Get available quantity for each product
+    const productsWithStock = await Promise.all(
+      productsList.map(async (product) => {
+        const stockResult = await erpDb.execute(sql`
+          SELECT COALESCE(SUM(quantity_on_hand - quantity_reserved), 0) as available_quantity
+          FROM stock_levels
+          WHERE product_id = ${product.id}
+        `);
+        
+        const availableQty = stockResult[0]?.available_quantity;
+        
+        return {
+          ...product,
+          availableQuantity: typeof availableQty === 'number' ? availableQty : parseFloat(String(availableQty || 0)),
+        };
+      })
+    );
+
     return NextResponse.json({
-      products: productsList,
+      products: productsWithStock,
       pagination: {
         page,
         limit,
-        total: productsList.length,
+        total: productsWithStock.length,
       },
     });
   } catch (error: any) {
@@ -96,6 +114,7 @@ export async function POST(req: NextRequest) {
       leadTimeDays,
       imageUrl,
       notes,
+      suppliers,
     } = body;
 
     // Validate required fields
@@ -147,6 +166,23 @@ export async function POST(req: NextRequest) {
         isActive: true,
       })
       .returning();
+
+    // Add suppliers if provided
+    if (suppliers && Array.isArray(suppliers) && suppliers.length > 0) {
+      const supplierValues = suppliers.map((sup: any) => ({
+        productId: newProduct.id,
+        supplierId: sup.supplierId,
+        supplierSku: sup.supplierSku || null,
+        supplierProductName: sup.supplierProductName || null,
+        unitPrice: sup.unitPrice,
+        leadTimeDays: parseInt(sup.leadTimeDays) || 0,
+        minimumOrderQuantity: sup.minimumOrderQuantity || '1',
+        isPrimary: sup.isPrimary || false,
+        isActive: sup.isActive !== false,
+      }));
+
+      await erpDb.insert(productSuppliers).values(supplierValues);
+    }
 
     return NextResponse.json({ product: newProduct }, { status: 201 });
   } catch (error: any) {

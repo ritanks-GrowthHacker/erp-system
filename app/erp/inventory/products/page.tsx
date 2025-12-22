@@ -7,6 +7,29 @@ import { getAuthToken } from '@/lib/utils/token';
 import Barcode from 'react-barcode';
 import ProductModal from '@/components/modal/ProductModal';
 
+interface Supplier {
+  id: string;
+  name: string;
+  code?: string;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  code: string;
+}
+
+interface ProductSupplier {
+  supplierId: string;
+  supplierSku: string;
+  supplierProductName: string;
+  unitPrice: string;
+  leadTimeDays: string;
+  minimumOrderQuantity: string;
+  isPrimary: boolean;
+  isActive: boolean;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -19,6 +42,7 @@ interface Product {
   reorderQuantity: string;
   description?: string;
   imageUrl?: string;
+  availableQuantity?: number;
   category?: {
     name: string;
   };
@@ -26,6 +50,10 @@ interface Product {
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [productSuppliers, setProductSuppliers] = useState<ProductSupplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -33,12 +61,18 @@ export default function ProductsPage() {
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
   const [generatingSKU, setGeneratingSKU] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterType, setFilterType] = useState('');
+  const [filterWarehouse, setFilterWarehouse] = useState('');
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
     description: '',
+    productCategoryId: '',
     productType: 'storable',
     trackingType: 'none',
     costPrice: '',
@@ -50,6 +84,9 @@ export default function ProductsPage() {
 
   useEffect(() => {
     fetchProducts();
+    fetchSuppliers();
+    fetchCategories();
+    fetchWarehouses();
   }, []);
 
   useEffect(() => {
@@ -90,6 +127,60 @@ export default function ProductsPage() {
     }
   };
 
+  const fetchSuppliers = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      const response = await fetch('/api/erp/purchasing/suppliers', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSuppliers(data.suppliers || []);
+      }
+    } catch (error) {
+      console.error('Error fetching suppliers:', error);
+    }
+  };
+
+  const fetchCategories = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      const response = await fetch('/api/erp/inventory/categories', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCategories(data.categories || []);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
+
+  const fetchWarehouses = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      const response = await fetch('/api/erp/inventory/warehouses', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setWarehouses(data.warehouses || []);
+      }
+    } catch (error) {
+      console.error('Error fetching warehouses:', error);
+    }
+  };
+
   const handleGenerateSKU = async () => {
     if (!formData.name.trim()) {
       alert('Please enter product name first');
@@ -124,6 +215,14 @@ export default function ProductsPage() {
     }
   };
 
+  const handleAddSupplier = (supplier: ProductSupplier) => {
+    setProductSuppliers([...productSuppliers, supplier]);
+  };
+
+  const handleRemoveSupplier = (index: number) => {
+    setProductSuppliers(productSuppliers.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -134,6 +233,11 @@ export default function ProductsPage() {
     }
 
     try {
+      const payload = {
+        ...formData,
+        suppliers: productSuppliers,
+      };
+
       const url = editingProduct
         ? `/api/erp/inventory/products/${editingProduct.id}`
         : '/api/erp/inventory/products';
@@ -145,7 +249,7 @@ export default function ProductsPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
@@ -162,12 +266,13 @@ export default function ProductsPage() {
     }
   };
 
-  const handleEdit = (product: Product) => {
+  const handleEdit = async (product: Product) => {
     setEditingProduct(product);
     setFormData({
       name: product.name,
       sku: product.sku,
       description: product.description || '',
+      productCategoryId: (product as any).productCategoryId || '',
       productType: product.productType,
       trackingType: 'none',
       costPrice: product.costPrice,
@@ -177,6 +282,33 @@ export default function ProductsPage() {
       imageUrl: product.imageUrl || '',
     });
     setImagePreview(product.imageUrl || null);
+    
+    // Fetch product suppliers
+    const token = getAuthToken();
+    if (token) {
+      try {
+        const response = await fetch(`/api/erp/inventory/products/${product.id}/suppliers`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const suppliersList = (data.suppliers || []).map((ps: any) => ({
+            supplierId: ps.supplierId,
+            supplierSku: ps.supplierSku || '',
+            supplierProductName: ps.supplierProductName || '',
+            unitPrice: ps.unitPrice,
+            leadTimeDays: ps.leadTimeDays.toString(),
+            minimumOrderQuantity: ps.minimumOrderQuantity,
+            isPrimary: ps.isPrimary,
+            isActive: ps.isActive,
+          }));
+          setProductSuppliers(suppliersList);
+        }
+      } catch (error) {
+        console.error('Error fetching product suppliers:', error);
+      }
+    }
+    
     setShowForm(true);
   };
 
@@ -189,10 +321,12 @@ export default function ProductsPage() {
     setShowForm(false);
     setEditingProduct(null);
     setImagePreview(null);
+    setProductSuppliers([]);
     setFormData({
       name: '',
       sku: '',
       description: '',
+      productCategoryId: '',
       productType: 'storable',
       trackingType: 'none',
       costPrice: '',
@@ -252,10 +386,26 @@ export default function ProductsPage() {
     return { label: 'In Stock', color: 'bg-green-100 text-green-800' };
   };
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.sku.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = !filterCategory || (product as any).productCategoryId === filterCategory;
+    const matchesType = !filterType || product.productType === filterType;
+    const matchesWarehouse = !filterWarehouse || true; // Warehouse filter would need stock level data
+    
+    return matchesSearch && matchesCategory && matchesType && matchesWarehouse;
+  });
+
+  // Pagination
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterCategory, filterType, filterWarehouse]);
 
   const stats = {
     total: products.length,
@@ -319,6 +469,64 @@ export default function ProductsPage() {
         </div>
       </div>
 
+      {/* Filters */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Categories</option>
+              {categories.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Types</option>
+              <option value="storable">Storable Product</option>
+              <option value="consumable">Consumable</option>
+              <option value="service">Service</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Warehouse</label>
+            <select
+              value={filterWarehouse}
+              onChange={(e) => setFilterWarehouse(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Warehouses</option>
+              {warehouses.map(wh => (
+                <option key={wh.id} value={wh.id}>{wh.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={() => {
+                setFilterCategory('');
+                setFilterType('');
+                setFilterWarehouse('');
+                setSearchTerm('');
+              }}
+              className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Clear Filters
+            </button>
+          </div>
+        </div>
+      </div>
+
       <ProductModal
         isOpen={showForm}
         onClose={resetForm}
@@ -331,22 +539,78 @@ export default function ProductsPage() {
         imagePreview={imagePreview}
         onImageUpload={handleImageUpload}
         onRemoveImage={handleRemoveImage}
+        suppliers={suppliers}
+        productSuppliers={productSuppliers}
+        onAddSupplier={handleAddSupplier}
+        onRemoveSupplier={handleRemoveSupplier}
+        categories={categories}
       />
 
       {/* Products List - Expandable Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <div>
-            <h3 className="text-base font-semibold text-gray-900">Product Inventory</h3>
-            <p className="text-sm text-gray-500">{filteredProducts.length} products found</p>
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h3 className="text-base font-semibold text-gray-900">Product Inventory</h3>
+              <p className="text-sm text-gray-500">{filteredProducts.length} products found</p>
+            </div>
+            <input
+              type="text"
+              placeholder="Search by name or SKU..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
+            />
           </div>
-          <input
-            type="text"
-            placeholder="Search by name or SKU..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
-          />
+          
+          {/* Filters */}
+          <div className="flex gap-3">
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Categories</option>
+              {categories.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
+
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Types</option>
+              <option value="storable">Storable Product</option>
+              <option value="consumable">Consumable</option>
+              <option value="service">Service</option>
+            </select>
+
+            <select
+              value={filterWarehouse}
+              onChange={(e) => setFilterWarehouse(e.target.value)}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Warehouses</option>
+              {warehouses.map(wh => (
+                <option key={wh.id} value={wh.id}>{wh.name}</option>
+              ))}
+            </select>
+
+            {(filterCategory || filterType || filterWarehouse) && (
+              <button
+                onClick={() => {
+                  setFilterCategory('');
+                  setFilterType('');
+                  setFilterWarehouse('');
+                }}
+                className="px-3 py-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
         </div>
         <div className="overflow-x-auto">
           {filteredProducts.length === 0 ? (
@@ -369,13 +633,14 @@ export default function ProductsPage() {
                   <TableHead className="font-semibold text-gray-700">SKU</TableHead>
                   <TableHead className="font-semibold text-gray-700">Category</TableHead>
                   <TableHead className="font-semibold text-gray-700">Unit Price</TableHead>
+                  <TableHead className="font-semibold text-gray-700">Available Qty</TableHead>
                   <TableHead className="font-semibold text-gray-700">Stock Status</TableHead>
                   <TableHead className="font-semibold text-gray-700">Barcode</TableHead>
                   <TableHead className="font-semibold text-gray-700 text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProducts.map((product) => {
+                {paginatedProducts.map((product) => {
                   const stockStatus = getStockStatus(product);
                   const margin = ((parseFloat(product.salePrice) - parseFloat(product.costPrice)) / parseFloat(product.costPrice) * 100).toFixed(1);
 
@@ -396,6 +661,11 @@ export default function ProductsPage() {
                         </TableCell>
                         <TableCell className="font-semibold text-gray-900">
                           ₹{parseFloat(product.salePrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-bold text-lg text-blue-600">
+                            {product.availableQuantity !== undefined ? product.availableQuantity : '-'}
+                          </span>
                         </TableCell>
                         <TableCell>
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${stockStatus.color}`}>
@@ -530,7 +800,7 @@ export default function ProductsPage() {
     
     {/* Barcode on the Left */}
     {product.sku && (
-      <div className="border w-[50%] border-gray-200 rounded-lg p-2 bg-gray-50">
+      <div className="border w-[30%] border-gray-200 rounded-lg p-2 bg-gray-50">
         <h4 className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">Product Barcode</h4>
         <div className="flex bg-white p-1 rounded">
           <Barcode
@@ -583,6 +853,34 @@ export default function ProductsPage() {
             </Table>
           )}
         </div>
+
+        {/* Pagination */}
+        {filteredProducts.length > 0 && (
+          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              Showing {startIndex + 1} to {Math.min(endIndex, filteredProducts.length)} of {filteredProducts.length} products
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <span className="px-3 py-1.5 text-sm text-gray-700">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* View Product Modal */}

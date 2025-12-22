@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { Input, Select, Textarea } from '@/components/ui/form';
+import { inputFieldDesign, modalLabels } from './modalInputDesigns';
 import { 
   X, 
   Package, 
@@ -12,8 +13,32 @@ import {
   Plus, 
   Trash2, 
   UploadCloud,
-  Info
+  Info,
+  Truck
 } from 'lucide-react';
+
+interface Supplier {
+  id: string;
+  name: string;
+  code?: string;
+}
+
+interface ProductSupplier {
+  supplierId: string;
+  supplierSku: string;
+  supplierProductName: string;
+  unitPrice: string;
+  leadTimeDays: string;
+  minimumOrderQuantity: string;
+  isPrimary: boolean;
+  isActive: boolean;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  code: string;
+}
 
 interface ProductModalProps {
   isOpen: boolean;
@@ -23,6 +48,7 @@ interface ProductModalProps {
     name: string;
     sku: string;
     description: string;
+    productCategoryId: string;
     productType: string;
     trackingType: string;
     costPrice: string;
@@ -38,6 +64,11 @@ interface ProductModalProps {
   imagePreview: string | null;
   onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemoveImage: () => void;
+  suppliers: Supplier[];
+  productSuppliers: ProductSupplier[];
+  onAddSupplier: (supplier: ProductSupplier) => void;
+  onRemoveSupplier: (index: number) => void;
+  categories: Category[];
 }
 
 export default function ProductModal({
@@ -52,7 +83,23 @@ export default function ProductModal({
   imagePreview,
   onImageUpload,
   onRemoveImage,
+  suppliers,
+  productSuppliers,
+  onAddSupplier,
+  onRemoveSupplier,
+  categories,
 }: ProductModalProps) {
+  const [showSupplierForm, setShowSupplierForm] = React.useState(false);
+  const [supplierFormData, setSupplierFormData] = React.useState<ProductSupplier>({
+    supplierId: '',
+    supplierSku: '',
+    supplierProductName: '',
+    unitPrice: '',
+    leadTimeDays: '7',
+    minimumOrderQuantity: '1',
+    isPrimary: false,
+    isActive: true,
+  });
   useEffect(() => {
     if (!isOpen) return;
     
@@ -136,6 +183,16 @@ export default function ProductModal({
                   </div>
                   <p className="text-[10px] text-slate-400 italic font-medium uppercase tracking-tight">Enter name first to generate a unique SKU</p>
                 </div>
+
+                <Select
+                  label="Category"
+                  value={formData.productCategoryId}
+                  onChange={(e) => setFormData({ ...formData, productCategoryId: e.target.value })}
+                  options={[
+                    { value: '', label: 'No Category' },
+                    ...categories.map(cat => ({ value: cat.id, label: cat.name }))
+                  ]}
+                />
 
                 <Select
                   label="Product Type *"
@@ -278,6 +335,201 @@ export default function ProductModal({
                 rows={4}
                 className="focus:ring-2 focus:ring-blue-500 resize-none"
               />
+            </section>
+
+            {/* Supplier Management Section */}
+            <section className="space-y-4">
+              <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <Truck size={18} className="text-purple-600" />
+                  <h4 className="font-bold text-slate-800 uppercase tracking-wider text-xs italic">Suppliers</h4>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowSupplierForm(!showSupplierForm)}
+                  className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold transition-all flex items-center gap-1"
+                >
+                  <Plus size={14} />
+                  Add Supplier
+                </button>
+              </div>
+
+              {/* Add Supplier Form */}
+              {showSupplierForm && (
+                <div className="bg-purple-50/40 p-4 rounded-xl border border-purple-100">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className={modalLabels}>Supplier *</label>
+                      <select
+                        value={supplierFormData.supplierId}
+                        onChange={(e) => setSupplierFormData({ ...supplierFormData, supplierId: e.target.value })}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 ${inputFieldDesign}`}
+                        required
+                      >
+                        <option value="">Select Supplier</option>
+                        {suppliers.map(sup => (
+                          <option key={sup.id} value={sup.id}>{sup.name} {sup.code ? `(${sup.code})` : ''}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className={modalLabels}>Unit Price (₹) *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={supplierFormData.unitPrice}
+                        onChange={(e) => setSupplierFormData({ ...supplierFormData, unitPrice: e.target.value })}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 ${inputFieldDesign}`}
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className={modalLabels}>Supplier SKU</label>
+                      <input
+                        type="text"
+                        value={supplierFormData.supplierSku}
+                        onChange={(e) => setSupplierFormData({ ...supplierFormData, supplierSku: e.target.value })}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 ${inputFieldDesign}`}
+                        placeholder="Supplier's product code"
+                      />
+                    </div>
+
+                    <div>
+                      <label className={modalLabels}>Supplier Product Name</label>
+                      <input
+                        type="text"
+                        value={supplierFormData.supplierProductName}
+                        onChange={(e) => setSupplierFormData({ ...supplierFormData, supplierProductName: e.target.value })}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 ${inputFieldDesign}`}
+                        placeholder="How supplier names this product"
+                      />
+                    </div>
+
+                    <div>
+                      <label className={modalLabels}>Lead Time (Days)</label>
+                      <input
+                        type="number"
+                        value={supplierFormData.leadTimeDays}
+                        onChange={(e) => setSupplierFormData({ ...supplierFormData, leadTimeDays: e.target.value })}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 ${inputFieldDesign}`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={modalLabels}>Min Order Quantity</label>
+                      <input
+                        type="number"
+                        value={supplierFormData.minimumOrderQuantity}
+                        onChange={(e) => setSupplierFormData({ ...supplierFormData, minimumOrderQuantity: e.target.value })}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 ${inputFieldDesign}`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-6 mt-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={supplierFormData.isPrimary}
+                        onChange={(e) => setSupplierFormData({ ...supplierFormData, isPrimary: e.target.checked })}
+                        className="w-4 h-4 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Primary Supplier</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={supplierFormData.isActive}
+                        onChange={(e) => setSupplierFormData({ ...supplierFormData, isActive: e.target.checked })}
+                        className="w-4 h-4 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Active</span>
+                    </label>
+                  </div>
+
+                  <div className="flex gap-2 mt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!supplierFormData.supplierId || !supplierFormData.unitPrice) {
+                          alert('Please select a supplier and enter unit price');
+                          return;
+                        }
+                        onAddSupplier(supplierFormData);
+                        setSupplierFormData({
+                          supplierId: '',
+                          supplierSku: '',
+                          supplierProductName: '',
+                          unitPrice: '',
+                          leadTimeDays: '7',
+                          minimumOrderQuantity: '1',
+                          isPrimary: false,
+                          isActive: true,
+                        });
+                        setShowSupplierForm(false);
+                      }}
+                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-semibold transition-all"
+                    >
+                      Add Supplier
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowSupplierForm(false)}
+                      className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-semibold transition-all"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Suppliers List */}
+              {productSuppliers.length > 0 && (
+                <div className="space-y-2">
+                  {productSuppliers.map((ps, index) => {
+                    const supplier = suppliers.find(s => s.id === ps.supplierId);
+                    return (
+                      <div key={index} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:border-purple-300 transition-colors">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-gray-900">{supplier?.name || 'Unknown'}</span>
+                            {ps.isPrimary && (
+                              <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-semibold rounded">PRIMARY</span>
+                            )}
+                            {!ps.isActive && (
+                              <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-semibold rounded">INACTIVE</span>
+                            )}
+                          </div>
+                          <div className="flex gap-4 mt-1 text-xs text-gray-600">
+                            <span>₹{parseFloat(ps.unitPrice).toFixed(2)}</span>
+                            <span>• {ps.leadTimeDays} days</span>
+                            <span>• Min: {ps.minimumOrderQuantity}</span>
+                            {ps.supplierSku && <span>• SKU: {ps.supplierSku}</span>}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => onRemoveSupplier(index)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Remove supplier"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {productSuppliers.length === 0 && (
+                <div className="text-center py-6 text-gray-500 text-sm">
+                  No suppliers added yet. Click "Add Supplier" to link this product with suppliers.
+                </div>
+              )}
             </section>
           </form>
         </div>

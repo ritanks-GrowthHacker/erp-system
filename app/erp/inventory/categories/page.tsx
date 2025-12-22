@@ -20,6 +20,8 @@ export default function CategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [generatingCode, setGeneratingCode] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -136,6 +138,12 @@ export default function CategoriesPage() {
       alert('Failed to delete category');
     }
   };
+
+  // Pagination calculation
+  const totalPages = Math.ceil(categories.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedCategories = categories.slice(startIndex, endIndex);
 
   if (loading) {
     return (
@@ -273,7 +281,7 @@ export default function CategoriesPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                categories.map((category) => (
+                paginatedCategories.map((category) => (
                   <TableRow key={category.id} className="hover:bg-gray-50/50">
                     <TableCell className="font-medium">{category.name}</TableCell>
                     <TableCell>{category.code || '-'}</TableCell>
@@ -308,6 +316,32 @@ export default function CategoriesPage() {
             </TableBody>
           </Table>
         </div>
+        {categories.length > 0 && (
+          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              Showing {startIndex + 1} to {Math.min(endIndex, categories.length)} of {categories.length} items
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <span className="px-3 py-1.5 text-sm text-gray-700">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

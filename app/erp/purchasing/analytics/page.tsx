@@ -164,8 +164,8 @@ export default function PurchasingAnalyticsPage() {
     ? (parseFloat(analytics.poSummary.received_count) / parseFloat(analytics.poSummary.total_purchase_orders)) * 100
     : 0;
 
-  const paymentRate = analytics.invoiceSummary.total_invoices
-    ? (parseFloat(analytics.invoiceSummary.paid_count) / parseFloat(analytics.invoiceSummary.total_invoices)) * 100
+  const paymentRate = analytics.invoiceSummary.total_invoices && parseFloat(analytics.invoiceSummary.total_invoices) > 0
+    ? (parseFloat(analytics.invoiceSummary.paid_count || '0') / parseFloat(analytics.invoiceSummary.total_invoices)) * 100
     : 0;
 
   return (
@@ -419,10 +419,10 @@ export default function PurchasingAnalyticsPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-bold text-green-600">
-                    ₹{parseFloat(supplier.total_purchase_value).toLocaleString('en-IN')}
+                    ₹{parseFloat(supplier.total_purchase_value || '0').toLocaleString('en-IN')}
                   </p>
                   <p className="text-sm text-gray-600">
-                    {parseFloat(supplier.completion_rate).toFixed(1)}% completion rate
+                    {parseFloat(supplier.completion_rate || '0').toFixed(1)}% completion rate
                   </p>
                 </div>
               </div>

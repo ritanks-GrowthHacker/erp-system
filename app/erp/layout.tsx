@@ -88,39 +88,17 @@ export default function ErpLayout({
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Modern Header */}
-        <header className="h-16 bg-white border-b border-gray-200 px-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-semibold text-gray-900">
-              {navigation.find((item) => pathname === item.href || pathname.startsWith(item.href + '/'))?.name || 'Dashboard'}
-            </h1>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            {/* Search */}
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search..."
-                className="w-80 pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <Icons.Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            </div>
-            
-            {/* Action Buttons */}
-            <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-            </button>
-            
-            <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-              <Icons.Bell size={20} />
-            </button>
-            
-            <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center cursor-pointer">
-              <span className="text-white text-sm font-semibold">AU</span>
+    <div className="flex-1 flex flex-col overflow-hidden bg-white">
+        <header className="h-16 bg-white border-b border-gray-200">
+          <div className="px-6 flex ml-auto justify-end items-center h-full">
+            <div className="flex items-center gap-3">
+              <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                <Icons.Bell size={20} />
+              </button>
+              
+              <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center cursor-pointer">
+                <span className="text-white text-sm font-semibold">AU</span>
+              </div>
             </div>
           </div>
         </header>

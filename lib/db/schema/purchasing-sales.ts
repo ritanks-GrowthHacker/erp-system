@@ -282,26 +282,7 @@ export const bomLines = pgTable('bom_lines', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
-export const manufacturingOrders = pgTable('manufacturing_orders', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  erpOrganizationId: uuid('erp_organization_id').notNull().references(() => erpOrganizations.id, { onDelete: 'cascade' }),
-  bomHeaderId: uuid('bom_header_id').notNull().references(() => bomHeaders.id, { onDelete: 'restrict' }),
-  productId: uuid('product_id').notNull().references(() => products.id, { onDelete: 'restrict' }),
-  warehouseId: uuid('warehouse_id').notNull().references(() => warehouses.id, { onDelete: 'restrict' }),
-  moNumber: varchar('mo_number', { length: 100 }).notNull(),
-  quantityToProduce: decimal('quantity_to_produce', { precision: 15, scale: 2 }).notNull(),
-  quantityProduced: decimal('quantity_produced', { precision: 15, scale: 2 }).default('0'),
-  scheduledStartDate: date('scheduled_start_date'),
-  scheduledEndDate: date('scheduled_end_date'),
-  actualStartDate: date('actual_start_date'),
-  actualEndDate: date('actual_end_date'),
-  status: varchar('status', { length: 50 }).default('draft'),
-  priority: varchar('priority', { length: 50 }).default('normal'),
-  notes: text('notes'),
-  createdBy: uuid('created_by').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-});
+// manufacturingOrders moved to manufacturing.ts schema
 
 // ============================================
 // AUDIT & ACTIVITY LOGS

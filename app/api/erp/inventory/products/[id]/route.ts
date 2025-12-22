@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { erpDb } from '@/lib/db';
-import { products } from '@/lib/db/schema';
+import { products, productSuppliers } from '@/lib/db/schema';
 import { requireErpAccess, hasPermission } from '@/lib/auth';
 import { eq, and } from 'drizzle-orm';
 
@@ -102,6 +102,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
       imageUrl,
       notes,
       isActive,
+      suppliers,
     } = body;
 
     // Check if product exists
@@ -140,6 +141,29 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
       })
       .where(eq(products.id, id))
       .returning();
+
+    // Update suppliers if provided
+    if (suppliers && Array.isArray(suppliers)) {
+      // Delete existing suppliers
+      await erpDb.delete(productSuppliers).where(eq(productSuppliers.productId, id));
+
+      // Add new suppliers
+      if (suppliers.length > 0) {
+        const supplierValues = suppliers.map((sup: any) => ({
+          productId: id,
+          supplierId: sup.supplierId,
+          supplierSku: sup.supplierSku || null,
+          supplierProductName: sup.supplierProductName || null,
+          unitPrice: sup.unitPrice,
+          leadTimeDays: parseInt(sup.leadTimeDays) || 0,
+          minimumOrderQuantity: sup.minimumOrderQuantity || '1',
+          isPrimary: sup.isPrimary || false,
+          isActive: sup.isActive !== false,
+        }));
+
+        await erpDb.insert(productSuppliers).values(supplierValues);
+      }
+    }
 
     return NextResponse.json({ product: updatedProduct });
   } catch (err: any) {

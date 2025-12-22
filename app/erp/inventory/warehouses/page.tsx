@@ -39,6 +39,8 @@ export default function WarehousesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [generatingCode, setGeneratingCode] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
   
   // Add Product to Warehouse Modal State
   const [showAddProductModal, setShowAddProductModal] = useState(false);
@@ -321,6 +323,12 @@ export default function WarehousesPage() {
     setExpandedRows(newExpanded);
   };
 
+  // Pagination calculation
+  const totalPages = Math.ceil(warehouses.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedWarehouses = warehouses.slice(startIndex, endIndex);
+
   if (loading) {
     return (
       <div className="p-6">
@@ -396,7 +404,7 @@ export default function WarehousesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {warehouses.map((warehouse) => (
+                {paginatedWarehouses.map((warehouse) => (
                   <React.Fragment key={warehouse.id}>
                     <TableRow 
                       className="hover:bg-gray-50/50 cursor-pointer transition-colors"
@@ -555,6 +563,32 @@ export default function WarehousesPage() {
             </Table>
           )}
         </div>
+        {warehouses.length > 0 && (
+          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              Showing {startIndex + 1} to {Math.min(endIndex, warehouses.length)} of {warehouses.length} items
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <span className="px-3 py-1.5 text-sm text-gray-700">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
