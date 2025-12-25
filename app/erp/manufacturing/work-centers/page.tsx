@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Edit, Trash2, Activity, AlertTriangle, Plus, ChevronDown, ChevronUp, Eye } from 'lucide-react';
 import { getAuthToken } from '@/lib/utils/token';
+import { useAlert } from '@/components/common/CustomAlert';
 
 interface WorkCenter {
   id: string;
@@ -44,6 +45,7 @@ interface WorkCenterDetails {
 }
 
 export default function WorkCentersPage() {
+  const { showAlert, showConfirm } = useAlert();
   const [workCenters, setWorkCenters] = useState<WorkCenter[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
@@ -99,22 +101,34 @@ export default function WorkCentersPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this work center?')) return;
-    
     const token = getAuthToken();
-    try {
-      const res = await fetch(`/api/erp/manufacturing/work-centers/${id}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!res.ok) throw new Error('Failed to delete work center');
-      await fetchWorkCenters();
-    } catch (error) {
-      console.error('Error deleting work center:', error);
-      alert('Failed to delete work center');
-    }
+    if (!token) return;
+
+    showConfirm({
+      title: 'Delete Work Center',
+      message: 'Are you sure you want to delete this work center?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/erp/manufacturing/work-centers/${id}`, {
+            method: 'DELETE',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          if (!res.ok) throw new Error('Failed to delete work center');
+          await fetchWorkCenters();
+        } catch (error) {
+          console.error('Error deleting work center:', error);
+          showAlert({
+            title: 'Error',
+            message: 'Failed to delete work center',
+            type: 'error',
+          });
+        }
+      },
+    });
   };
 
   const getStatusColor = (status: string) => {

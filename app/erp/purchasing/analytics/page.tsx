@@ -36,6 +36,15 @@ interface PurchasingAnalytics {
     completed_orders: string;
     avg_delivery_days: string;
   };
+  receiptSummary: {
+    total_po_receipts: string;
+    total_invoice_receipts: string;
+    po_received: string;
+    po_accepted: string;
+    invoice_generated: string;
+    invoice_downloaded: string;
+    total_receipt_amount: string;
+  };
   topSuppliers: Array<{
     id: string;
     name: string;
@@ -276,7 +285,50 @@ export default function PurchasingAnalyticsPage() {
           </div>
         </div>
       </div>
+      {/* Receipts Overview */}
+      {analytics.receiptSummary && (
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Receipts Overview</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <div className="text-2xl font-bold text-blue-700">
+                {parseInt(analytics.receiptSummary.total_po_receipts || '0') + parseInt(analytics.receiptSummary.total_invoice_receipts || '0')}
+              </div>
+              <p className="text-sm text-blue-600">Total Receipts</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {analytics.receiptSummary.total_po_receipts} PO • {analytics.receiptSummary.total_invoice_receipts} Invoice
+              </p>
+            </div>
 
+            <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+              <div className="text-2xl font-bold text-green-700">
+                {parseInt(analytics.receiptSummary.po_accepted || '0') + parseInt(analytics.receiptSummary.invoice_downloaded || '0')}
+              </div>
+              <p className="text-sm text-green-600">Completed</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {analytics.receiptSummary.po_accepted} accepted • {analytics.receiptSummary.invoice_downloaded} downloaded
+              </p>
+            </div>
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+              <div className="text-2xl font-bold text-yellow-700">
+                {parseInt(analytics.receiptSummary.po_received || '0') + parseInt(analytics.receiptSummary.invoice_generated || '0')}
+              </div>
+              <p className="text-sm text-yellow-600">Pending</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {analytics.receiptSummary.po_received} received • {analytics.receiptSummary.invoice_generated} generated
+              </p>
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-lg p-6">
+              <div className="text-2xl font-bold text-teal-600">
+                ₹{parseFloat(analytics.receiptSummary.total_receipt_amount || '0').toLocaleString('en-IN')}
+              </div>
+              <p className="text-sm text-gray-600">Invoice Receipt Value</p>
+            </div>
+          </div>
+        </div>
+      )}
       {/* RFQ and Invoices */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white border border-gray-200 rounded-lg">

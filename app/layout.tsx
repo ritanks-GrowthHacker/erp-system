@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { AlertProvider } from "@/components/common/CustomAlert";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -21,7 +22,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="antialiased bg-gray-50 text-gray-900">
-        {children}
+        <AlertProvider>
+          {children}
+        </AlertProvider>
       </body>
     </html>
   );

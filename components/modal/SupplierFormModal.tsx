@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { getAuthToken } from '@/lib/utils/token';
 import { RefreshCw } from 'lucide-react';
+import { useAlert } from '@/components/common/CustomAlert';
 
 interface SupplierFormModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface SupplierFormModalProps {
 }
 
 export default function SupplierFormModal({ isOpen, onClose, onSuccess }: SupplierFormModalProps) {
+  const { showAlert } = useAlert();
   const [submitting, setSubmitting] = useState(false);
   const [generating, setGenerating] = useState(false);
 
@@ -49,13 +51,13 @@ export default function SupplierFormModal({ isOpen, onClose, onSuccess }: Suppli
     e.preventDefault();
     
     if (!supplierCode || !name) {
-      alert('Supplier Code and Name are required');
+      showAlert({ type: 'error', message: 'Supplier Code and Name are required' });
       return;
     }
 
     const token = getAuthToken();
     if (!token) {
-      alert('No authentication token found');
+      showAlert({ type: 'error', message: 'No authentication token found' });
       return;
     }
 
@@ -69,37 +71,34 @@ export default function SupplierFormModal({ isOpen, onClose, onSuccess }: Suppli
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          supplierCode,
+          code: supplierCode,
           name,
-          contactPerson,
           email,
           phone,
           address,
           city,
           state,
-          pincode,
           country,
-          gstNumber,
-          panNumber,
-          paymentTerms,
-          creditLimit: creditLimit ? parseFloat(creditLimit) : null,
-          status,
+          postalCode: pincode,
+          taxId: gstNumber || panNumber,
+          paymentTerms: paymentTerms === 'net30' ? 30 : paymentTerms === 'net60' ? 60 : 15,
+          currencyCode: 'INR',
           notes,
         }),
       });
 
       if (response.ok) {
-        alert('Supplier created successfully!');
+        showAlert({ type: 'success', title: 'Success!', message: 'Supplier created successfully' });
         onSuccess();
         resetForm();
         onClose();
       } else {
         const error = await response.json();
-        alert(`Failed to create supplier: ${error.error || 'Unknown error'}`);
+        showAlert({ type: 'error', title: 'Failed to create supplier', message: error.error || 'Unknown error' });
       }
     } catch (error) {
       console.error('Error creating supplier:', error);
-      alert('Failed to create supplier. Please try again.');
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to create supplier. Please try again.' });
     } finally {
       setSubmitting(false);
     }

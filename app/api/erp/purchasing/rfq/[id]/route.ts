@@ -3,7 +3,7 @@ import { erpDb } from '@/lib/db';
 import { requestForQuotations, rfqLines, rfqSuppliers } from '@/lib/db/schema/purchasing-sales';
 import { products } from '@/lib/db/schema/inventory';
 import { suppliers } from '@/lib/db/schema/purchasing-sales';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { requireErpAccess } from '@/lib/auth';
 
 // GET /api/erp/purchasing/rfq/[id]
@@ -47,6 +47,21 @@ export async function GET(
       .leftJoin(suppliers, eq(rfqSuppliers.supplierId, suppliers.id))
       .where(eq(rfqSuppliers.rfqId, rfqId));
 
+    // Fetch quotations for this RFQ
+    const quotationsResult = await erpDb.execute(sql`
+      SELECT 
+        sq.*,
+        s.name as supplier_name,
+        s.code as supplier_code,
+        s.email as supplier_email
+      FROM supplier_quotation_submissions sq
+      LEFT JOIN suppliers s ON sq.supplier_id = s.id
+      WHERE sq.rfq_id = ${rfqId}
+      ORDER BY sq.submission_date DESC, sq.created_at DESC
+    `);
+    
+    const quotations = Array.from(quotationsResult);
+
     return NextResponse.json({
       rfq: {
         ...rfq,
@@ -55,6 +70,7 @@ export async function GET(
           product: l.product,
         })),
         suppliers: invitedSuppliers,
+        quotations,
       },
     });
   } catch (error: any) {

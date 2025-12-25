@@ -5,6 +5,7 @@ import { getAuthToken } from '@/lib/utils/token';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Eye } from 'lucide-react';
 import AdjustmentModal from '@/components/modal/AdjustmentModal';
+import { useAlert } from '@/components/common/CustomAlert';
 
 interface StockAdjustment {
   id: string;
@@ -26,6 +27,7 @@ interface StockAdjustment {
 }
 
 export default function AdjustmentsPage() {
+  const { showAlert, showConfirm } = useAlert();
   const [adjustments, setAdjustments] = useState<StockAdjustment[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState('');
@@ -60,11 +62,15 @@ export default function AdjustmentsPage() {
   };
 
   const confirmAdjustment = async (id: string) => {
-    if (!confirm('Are you sure you want to confirm this adjustment? This will update stock levels.')) {
-      return;
-    }
-
     const token = getAuthToken();
+    if (!token) return;
+
+    showConfirm({
+      title: 'Confirm Adjustment',
+      message: 'Are you sure you want to confirm this adjustment? This will update stock levels.',
+      confirmText: 'Confirm',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
     if (!token) return;
 
     try {
@@ -74,16 +80,18 @@ export default function AdjustmentsPage() {
       });
 
       if (response.ok) {
+        showAlert({ type: 'success', title: 'Success', message: 'Stock adjustment confirmed successfully!' });
         await fetchAdjustments();
-        alert('Stock adjustment confirmed successfully!');
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to confirm adjustment');
+        showAlert({ type: 'error', title: 'Error', message: error.error || 'Failed to confirm adjustment' });
       }
     } catch (error) {
       console.error('Error confirming adjustment:', error);
-      alert('Failed to confirm adjustment');
-    }
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to confirm adjustment' });
+        }
+      }
+    });
   };
 
   const getStatusColor = (status: string) => {

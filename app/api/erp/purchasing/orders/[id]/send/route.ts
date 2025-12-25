@@ -63,14 +63,14 @@ export async function POST(
         : undefined,
       supplierName: po.supplier.name,
       supplierEmail: po.supplier.email,
-      totalAmount: parseFloat(po.po.totalAmount || '0').toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      totalAmount: po.po.totalAmount || '0',
       currencyCode: po.po.currencyCode || 'INR',
       lines: lines.map(l => ({
         productName: l.product?.name || 'Unknown Product',
         description: l.line.description || undefined,
-        quantity: parseFloat(l.line.quantityOrdered).toString(),
-        unitPrice: parseFloat(l.line.unitPrice).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-        total: (parseFloat(l.line.quantityOrdered) * parseFloat(l.line.unitPrice)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        quantity: l.line.quantityOrdered,
+        unitPrice: l.line.unitPrice,
+        total: (parseFloat(l.line.quantityOrdered) * parseFloat(l.line.unitPrice)).toString(),
       })),
     };
 

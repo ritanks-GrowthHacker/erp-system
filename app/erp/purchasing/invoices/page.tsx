@@ -2,8 +2,24 @@
 
 import { useState, useEffect } from 'react';
 import VendorInvoiceModal from '@/components/modal/VendorInvoiceModal';
+import SupplierInvoiceViewModal from '@/components/modal/SupplierInvoiceViewModal';
+import MarkPaidModal from '@/components/modal/MarkPaidModal';
 import { Input, Textarea } from '@/components/ui/form';
 import { getAuthToken } from '@/lib/utils/token';
+
+interface SupplierInvoice {
+  id: string;
+  invoice_number: string;
+  invoice_date: string;
+  due_date: string;
+  payment_status: string;
+  total_amount: string;
+  paid_amount: string;
+  supplier_name: string;
+  supplier_code: string;
+  quotation_number?: string;
+  rfq_number?: string;
+}
 
 interface VendorInvoice {
   id: string;
@@ -51,9 +67,14 @@ interface InvoiceLine {
 }
 
 export default function InvoicesPage() {
-  const [invoices, setInvoices] = useState<VendorInvoice[]>([]);
+  const [tab, setTab] = useState<'vendor' | 'supplier'>('supplier'); // Default to supplier invoices
+  const [vendorInvoices, setVendorInvoices] = useState<VendorInvoice[]>([]);
+  const [supplierInvoices, setSupplierInvoices] = useState<SupplierInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showMarkPaidModal, setShowMarkPaidModal] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -70,11 +91,54 @@ export default function InvoicesPage() {
   });
 
   useEffect(() => {
-    fetchInvoices();
+    fetchVendorInvoices();
+    fetchSupplierInvoices();
     fetchSuppliers();
     fetchPurchaseOrders();
     fetchProducts();
   }, []);
+
+  const fetchVendorInvoices = async () => {
+    try {
+      setLoading(true);
+      const token = getAuthToken();
+      const response = await fetch('/api/erp/purchasing/invoices', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setVendorInvoices(data.invoices || []);
+      }
+    } catch (error) {
+      console.error('Error fetching vendor invoices:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchSupplierInvoices = async () => {
+    try {
+      setLoading(true);
+      const token = getAuthToken();
+      const response = await fetch('/api/erp/purchasing/supplier-invoices', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSupplierInvoices(data.invoices || []);
+      }
+    } catch (error) {
+      console.error('Error fetching supplier invoices:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchInvoices = async () => {
     try {
@@ -88,7 +152,7 @@ export default function InvoicesPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setInvoices(data.invoices || []);
+        setVendorInvoices(data.invoices || []);
       }
     } catch (error) {
       console.error('Error fetching invoices:', error);
@@ -284,6 +348,25 @@ export default function InvoicesPage() {
     setInvoiceLines([]);
   };
 
+  const handleViewInvoice = (invoice: any) => {
+    setSelectedInvoice(invoice);
+    setShowViewModal(true);
+  };
+
+  const handleMarkPaid = (invoice: any) => {
+    setSelectedInvoice(invoice);
+    setShowMarkPaidModal(true);
+  };
+
+  const handleMarkPaidSuccess = () => {
+    fetchSupplierInvoices();
+    fetchVendorInvoices();
+  };
+
+  // Get current invoices based on active tab
+  const currentInvoices = tab === 'supplier' ? supplierInvoices : vendorInvoices;
+  const statusField = tab === 'supplier' ? 'payment_status' : 'status';
+
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       draft: 'bg-gray-100 text-gray-800',
@@ -314,30 +397,48 @@ export default function InvoicesPage() {
         </button>
       </div>
 
+      {/* Tabs */}
+      <div className="bg-white rounded-lg border border-gray-200 mb-6">
+        <div className="flex border-b">
+          <button
+            onClick={() => setTab('supplier')}
+            className={`px-6 py-3 font-medium ${tab === 'supplier' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
+          >
+            Supplier Invoices ({supplierInvoices.length})
+          </button>
+          <button
+            onClick={() => setTab('vendor')}
+            className={`px-6 py-3 font-medium ${tab === 'vendor' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
+          >
+            Vendor Invoices ({vendorInvoices.length})
+          </button>
+        </div>
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-xl p-5 border border-gray-200">
           <div className="text-sm font-medium text-gray-600 mb-2">Pending</div>
           <div className="text-2xl font-bold text-yellow-600">
-            {invoices.filter(i => i.status === 'pending').length}
+            {currentInvoices.filter((i: any) => (tab === 'supplier' ? i.payment_status === 'pending' : i.status === 'pending')).length}
           </div>
         </div>
         <div className="bg-white rounded-xl p-5 border border-gray-200">
-          <div className="text-sm font-medium text-gray-600 mb-2">Approved</div>
+          <div className="text-sm font-medium text-gray-600 mb-2">Approved/Paid</div>
           <div className="text-2xl font-bold text-blue-600">
-            {invoices.filter(i => i.status === 'approved').length}
+            {currentInvoices.filter((i: any) => (tab === 'supplier' ? i.payment_status === 'paid' : i.status === 'approved')).length}
           </div>
         </div>
         <div className="bg-white rounded-xl p-5 border border-gray-200">
           <div className="text-sm font-medium text-gray-600 mb-2">Paid</div>
           <div className="text-2xl font-bold text-green-600">
-            {invoices.filter(i => i.status === 'paid').length}
+            {currentInvoices.filter((i: any) => (tab === 'supplier' ? i.payment_status === 'paid' : i.status === 'paid')).length}
           </div>
         </div>
         <div className="bg-white rounded-xl p-5 border border-gray-200">
           <div className="text-sm font-medium text-gray-600 mb-2">Overdue</div>
           <div className="text-2xl font-bold text-red-600">
-            {invoices.filter(i => i.status === 'overdue').length}
+            {currentInvoices.filter((i: any) => (tab === 'supplier' ? i.payment_status === 'overdue' : i.status === 'overdue')).length}
           </div>
         </div>
       </div>
@@ -353,7 +454,7 @@ export default function InvoicesPage() {
             <div className="text-center py-12 text-gray-500">
               Loading invoices...
             </div>
-          ) : invoices.length === 0 ? (
+          ) : currentInvoices.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               No invoices found. Record your first invoice.
             </div>
@@ -373,24 +474,52 @@ export default function InvoicesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {invoices.map((invoice) => (
+                {currentInvoices.map((invoice: any) => (
                   <tr key={invoice.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{invoice.invoiceNumber}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(invoice.invoiceDate).toLocaleDateString()}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{invoice.supplier.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{invoice.purchaseOrder?.poNumber || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{parseFloat(invoice.totalAmount).toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{parseFloat(invoice.amountPaid).toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {tab === 'supplier' ? invoice.invoice_number : invoice.invoiceNumber}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {new Date(tab === 'supplier' ? invoice.invoice_date : invoice.invoiceDate).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {tab === 'supplier' ? invoice.supplier_name : invoice.supplier.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {tab === 'supplier' ? (invoice.quotation_number || '-') : (invoice.purchaseOrder?.poNumber || '-')}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {(tab === 'supplier' ? invoice.due_date : invoice.dueDate) 
+                        ? new Date(tab === 'supplier' ? invoice.due_date : invoice.dueDate).toLocaleDateString() 
+                        : '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      ₹{parseFloat(tab === 'supplier' ? invoice.total_amount : invoice.totalAmount).toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      ₹{parseFloat(tab === 'supplier' ? (invoice.paid_amount || 0) : invoice.amountPaid).toFixed(2)}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(invoice.status)}`}>
-                        {invoice.status.toUpperCase()}
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(tab === 'supplier' ? invoice.payment_status : invoice.status)}`}>
+                        {(tab === 'supplier' ? invoice.payment_status : invoice.status).toUpperCase()}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex gap-2">
-                        <button className="text-blue-600 hover:text-blue-800 font-medium">View</button>
-                        <button className="text-green-600 hover:text-green-800 font-medium">Pay</button>
+                        <button 
+                          onClick={() => handleViewInvoice(invoice)}
+                          className="text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          View
+                        </button>
+                        {tab === 'supplier' && invoice.payment_status !== 'paid' && (
+                          <button 
+                            onClick={() => handleMarkPaid(invoice)}
+                            className="text-green-600 hover:text-green-800 font-medium"
+                          >
+                            Pay
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -410,6 +539,35 @@ export default function InvoicesPage() {
           fetchInvoices();
         }}
       />
+
+      {/* Supplier Invoice View Modal */}
+      {showViewModal && selectedInvoice && (
+        <SupplierInvoiceViewModal
+          isOpen={showViewModal}
+          onClose={() => {
+            setShowViewModal(false);
+            setSelectedInvoice(null);
+          }}
+          invoice={selectedInvoice}
+          onMarkPaid={() => {
+            setShowViewModal(false);
+            handleMarkPaid(selectedInvoice);
+          }}
+        />
+      )}
+
+      {/* Mark as Paid Modal */}
+      {showMarkPaidModal && selectedInvoice && (
+        <MarkPaidModal
+          isOpen={showMarkPaidModal}
+          onClose={() => {
+            setShowMarkPaidModal(false);
+            setSelectedInvoice(null);
+          }}
+          invoice={selectedInvoice}
+          onSuccess={handleMarkPaidSuccess}
+        />
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input, Select, Textarea } from '@/components/ui/form';
 import { getAuthToken } from '@/lib/utils/token';
+import { useAlert } from '@/components/common/CustomAlert';
 
 interface Warehouse {
   id: string;
@@ -27,6 +28,7 @@ interface AdjustmentLine {
 }
 
 export default function NewAdjustmentPage() {
+  const { showAlert } = useAlert();
   const router = useRouter();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -104,12 +106,12 @@ export default function NewAdjustmentPage() {
 
     // Validate
     if (!formData.warehouseId) {
-      alert('Please select a warehouse');
+      showAlert({ type: 'error', title: 'Validation Error', message: 'Please select a warehouse' });
       return;
     }
 
     if (lines.some(l => !l.productId || !l.countedQuantity || !l.systemQuantity)) {
-      alert('Please fill in all required fields for each line');
+      showAlert({ type: 'error', title: 'Validation Error', message: 'Please fill in all required fields for each line' });
       return;
     }
 
@@ -133,15 +135,15 @@ export default function NewAdjustmentPage() {
       });
 
       if (response.ok) {
-        alert('Stock adjustment created successfully!');
+        showAlert({ type: 'success', title: 'Success', message: 'Stock adjustment created successfully!' });
         router.push('/erp/inventory/adjustments');
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to create adjustment');
+        showAlert({ type: 'error', title: 'Error', message: error.error || 'Failed to create adjustment' });
       }
     } catch (error) {
       console.error('Error creating adjustment:', error);
-      alert('Failed to create adjustment');
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to create adjustment' });
     } finally {
       setLoading(false);
     }

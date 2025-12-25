@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { getAuthToken } from '@/lib/utils/token';
 import { inputFieldDesign, modalLabels } from '@/components/modal/modalInputDesigns';
-import { X, Plus, Users, Building2, Mail, Phone, RefreshCw } from 'lucide-react';
+import { X, Plus, Users, Building2, Mail, Phone, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import React from 'react';
+import { useAlert } from '@/components/common/CustomAlert';
 
 interface Customer {
   id: string;
@@ -27,6 +28,7 @@ interface Customer {
 }
 
 export default function CustomersPage() {
+  const { showAlert } = useAlert();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -101,16 +103,20 @@ export default function CustomersPage() {
       });
 
       if (response.ok) {
-        alert(editingCustomer ? 'Customer updated successfully!' : 'Customer created successfully!');
+        showAlert({ 
+          type: 'success', 
+          title: 'Success', 
+          message: editingCustomer ? 'Customer updated successfully!' : 'Customer created successfully!' 
+        });
         resetForm();
         fetchCustomers();
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to save customer');
+        showAlert({ type: 'error', title: 'Error', message: error.error || 'Failed to save customer' });
       }
     } catch (error) {
       console.error('Error saving customer:', error);
-      alert('Failed to save customer');
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to save customer' });
     }
   };
 
@@ -273,7 +279,7 @@ export default function CustomersPage() {
                     <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => setExpandedRow(expandedRow === customer.id ? null : customer.id)}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
                         <div className="flex items-center gap-2">
-                          <span>{expandedRow === customer.id ? '▼' : '▶'}</span>
+                          {expandedRow === customer.id ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
                           {customer.code || '-'}
                         </div>
                       </td>

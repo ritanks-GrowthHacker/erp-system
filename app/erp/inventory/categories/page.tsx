@@ -5,6 +5,7 @@ import { Input, Textarea } from '@/components/ui/form';
 import { getAuthToken } from '@/lib/utils/token';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Edit, Trash2 } from 'lucide-react';
+import { useAlert } from '@/components/common/CustomAlert';
 
 interface Category {
   id: string;
@@ -16,6 +17,7 @@ interface Category {
 }
 
 export default function CategoriesPage() {
+  const { showAlert, showConfirm } = useAlert();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -73,11 +75,11 @@ export default function CategoriesPage() {
         const data = await response.json();
         setFormData({ ...formData, code: data.code });
       } else {
-        alert('Failed to generate code');
+        showAlert({ type: 'error', title: 'Error', message: 'Failed to generate code' });
       }
     } catch (error) {
       console.error('Error generating code:', error);
-      alert('Failed to generate code');
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to generate code' });
     } finally {
       setGeneratingCode(false);
     }
@@ -102,23 +104,30 @@ export default function CategoriesPage() {
       });
 
       if (response.ok) {
+        showAlert({ type: 'success', title: 'Success', message: 'Category created successfully!' });
         await fetchCategories();
         setShowForm(false);
         setFormData({ name: '', code: '', description: '', parentCategoryId: '' });
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to create category');
+        showAlert({ type: 'error', title: 'Error', message: error.error || 'Failed to create category' });
       }
     } catch (error) {
       console.error('Error creating category:', error);
-      alert('Failed to create category');
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to create category' });
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this category?')) return;
-
     const token = getAuthToken();
+    if (!token) return;
+
+    showConfirm({
+      title: 'Delete Category',
+      message: 'Are you sure you want to delete this category?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
     if (!token) return;
 
     try {
@@ -128,15 +137,18 @@ export default function CategoriesPage() {
       });
 
       if (response.ok) {
+        showAlert({ type: 'success', title: 'Success', message: 'Category deleted successfully!' });
         await fetchCategories();
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to delete category');
+        showAlert({ type: 'error', title: 'Error', message: error.error || 'Failed to delete category' });
       }
     } catch (error) {
       console.error('Error deleting category:', error);
-      alert('Failed to delete category');
-    }
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to delete category' });
+        }
+      }
+    });
   };
 
   // Pagination calculation

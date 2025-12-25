@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input, Select, Textarea } from '@/components/ui/form';
 import { getAuthToken } from '@/lib/utils/token';
+import { useAlert } from '@/components/common/CustomAlert';
 
 interface Warehouse {
   id: string;
@@ -26,6 +27,7 @@ interface MovementLine {
 }
 
 export default function NewMovementPage() {
+  const { showAlert } = useAlert();
   const router = useRouter();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -103,13 +105,13 @@ export default function NewMovementPage() {
 
     // Validate
     if (lines.some(l => !l.productId || !l.quantityOrdered)) {
-      alert('Please fill in all required fields for each line');
+      showAlert({ type: 'error', title: 'Validation Error', message: 'Please fill in all required fields for each line' });
       return;
     }
 
     if (formData.movementType === 'internal_transfer') {
       if (!formData.sourceWarehouseId || !formData.destinationWarehouseId) {
-        alert('Internal transfer requires both source and destination warehouses');
+        showAlert({ type: 'error', title: 'Validation Error', message: 'Internal transfer requires both source and destination warehouses' });
         return;
       }
     }
@@ -136,15 +138,15 @@ export default function NewMovementPage() {
       });
 
       if (response.ok) {
-        alert('Stock movement created successfully!');
+        showAlert({ type: 'success', title: 'Success', message: 'Stock movement created successfully!' });
         router.push('/erp/inventory/movements');
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to create movement');
+        showAlert({ type: 'error', title: 'Error', message: error.error || 'Failed to create movement' });
       }
     } catch (error) {
       console.error('Error creating movement:', error);
-      alert('Failed to create movement');
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to create movement' });
     } finally {
       setLoading(false);
     }

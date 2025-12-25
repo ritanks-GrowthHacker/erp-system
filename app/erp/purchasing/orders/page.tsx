@@ -9,6 +9,7 @@ import { getAuthToken } from '@/lib/utils/token';
 import POModal from '@/components/modal/POModal';
 import ViewPOModal from '@/components/modal/ViewPOModal';
 import EditPOModal from '@/components/modal/EditPOModal';
+import { useAlert } from '@/components/common/CustomAlert';
 
 interface PurchaseOrder {
   id: string;
@@ -53,6 +54,7 @@ interface POLine {
 }
 
 export default function PurchaseOrdersPage() {
+  const { showAlert, showConfirm } = useAlert();
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -207,7 +209,7 @@ export default function PurchaseOrdersPage() {
     e.preventDefault();
     
     if (!formData.supplierId || !formData.warehouseId || poLines.length === 0) {
-      alert('Please fill in all required fields and add at least one line item');
+      showAlert({ type: 'error', title: 'Validation Error', message: 'Please fill in all required fields and add at least one line item' });
       return;
     }
     
@@ -231,17 +233,17 @@ export default function PurchaseOrdersPage() {
       });
 
       if (response.ok) {
-        alert('Purchase Order created successfully!');
+        showAlert({ type: 'success', title: 'Success', message: 'Purchase Order created successfully!' });
         setShowCreateModal(false);
         resetForm();
         fetchOrders();
       } else {
         const data = await response.json();
-        alert(`Error: ${data.error}`);
+        showAlert({ type: 'error', title: 'Error', message: data.error });
       }
     } catch (error) {
       console.error('Error creating purchase order:', error);
-      alert('Failed to create purchase order');
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to create purchase order' });
     }
   };
 
@@ -256,12 +258,14 @@ export default function PurchaseOrdersPage() {
   };
 
   const handleSendPO = async (orderId: string) => {
-    if (!confirm('Send this Purchase Order to the supplier via email?')) {
-      return;
-    }
-
-    try {
-      setSendingPO(orderId);
+    showConfirm({
+      title: 'Send Purchase Order',
+      message: 'Send this Purchase Order to the supplier via email?',
+      confirmText: 'Send Email',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          setSendingPO(orderId);
       const token = getAuthToken();
       const response = await fetch(`/api/erp/purchasing/orders/${orderId}/send`, {
         method: 'POST',
@@ -271,18 +275,20 @@ export default function PurchaseOrdersPage() {
       });
 
       if (response.ok) {
-        alert('Purchase Order sent successfully!');
+        showAlert({ type: 'success', title: 'Success', message: 'Purchase Order sent successfully!' });
         fetchOrders(); // Refresh to show updated status
       } else {
         const data = await response.json();
-        alert(`Error: ${data.error}`);
+        showAlert({ type: 'error', title: 'Error', message: data.error });
       }
     } catch (error) {
       console.error('Error sending purchase order:', error);
-      alert('Failed to send purchase order');
-    } finally {
-      setSendingPO(null);
-    }
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to send purchase order' });
+        } finally {
+          setSendingPO(null);
+        }
+      }
+    });
   };
 
   const handleViewOrder = async (orderId: string) => {
@@ -297,11 +303,11 @@ export default function PurchaseOrdersPage() {
         setSelectedOrder(data.order);
         setShowViewModal(true);
       } else {
-        alert('Failed to load order details');
+        showAlert({ type: 'error', title: 'Error', message: 'Failed to load order details' });
       }
     } catch (error) {
       console.error('Error fetching order details:', error);
-      alert('Failed to load order details');
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to load order details' });
     }
   };
 
@@ -337,11 +343,11 @@ export default function PurchaseOrdersPage() {
         );
         setShowEditModal(true);
       } else {
-        alert('Failed to load order details');
+        showAlert({ type: 'error', title: 'Error', message: 'Failed to load order details' });
       }
     } catch (error) {
       console.error('Error fetching order details:', error);
-      alert('Failed to load order details');
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to load order details' });
     }
   };
 
@@ -349,7 +355,7 @@ export default function PurchaseOrdersPage() {
     e.preventDefault();
 
     if (!formData.supplierId || !formData.warehouseId || poLines.length === 0) {
-      alert('Please fill in all required fields and add at least one line item');
+      showAlert({ type: 'error', title: 'Validation Error', message: 'Please fill in all required fields and add at least one line item' });
       return;
     }
 
@@ -373,17 +379,17 @@ export default function PurchaseOrdersPage() {
       });
 
       if (response.ok) {
-        alert('Purchase Order updated successfully!');
-        setShowEditModal(false);
+        showAlert({ type: 'success', title: 'Success', message: 'Purchase Order created successfully!' });
+        setShowCreateModal(false);
         resetForm();
         fetchOrders();
       } else {
         const data = await response.json();
-        alert(`Error: ${data.error}`);
+        showAlert({ type: 'error', title: 'Error', message: data.error });
       }
     } catch (error) {
-      console.error('Error updating purchase order:', error);
-      alert('Failed to update purchase order');
+      console.error('Error creating purchase order:', error);
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to create purchase order' });
     }
   };
 

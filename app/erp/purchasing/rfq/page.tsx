@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Input, Textarea } from '@/components/ui/form';
+
 import { getAuthToken } from '@/lib/utils/token';
 import RFQModal from '@/components/modal/RFQModal';
+import { useAlert } from '@/components/common/CustomAlert';
 
 interface RFQ {
   id: string;
@@ -14,6 +15,7 @@ interface RFQ {
   status: string;
   suppliers: any[];
   lines: any[];
+  quotationsCount?: number;
 }
 
 interface Product {
@@ -38,6 +40,7 @@ interface RFQLine {
 }
 
 export default function RFQPage() {
+  const { showAlert , showConfirm } = useAlert();
   const [rfqs, setRFQs] = useState<RFQ[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -47,6 +50,8 @@ export default function RFQPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([]);
+  const [receivedQuotationsCount, setReceivedQuotationsCount] = useState(0);
+  
   const [rfqLines, setRFQLines] = useState<RFQLine[]>([]);
   const [formData, setFormData] = useState({
     title: '',
@@ -59,7 +64,26 @@ export default function RFQPage() {
     fetchRFQs();
     fetchProducts();
     fetchSuppliers();
+    fetchReceivedQuotations();
   }, []);
+
+  const fetchReceivedQuotations = async () => {
+    try {
+      const token = getAuthToken();
+      const response = await fetch('/api/erp/purchasing/supplier-quotations?status=submitted', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setReceivedQuotationsCount(data.total || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching received quotations:', error);
+    }
+  };
 
   const fetchRFQs = async () => {
     try {
@@ -158,7 +182,7 @@ export default function RFQPage() {
     e.preventDefault();
     
     if (!formData.title || rfqLines.length === 0 || selectedSuppliers.length === 0) {
-      alert('Please fill in title, add items, and select at least one supplier');
+      showAlert({ type: 'error', title: 'Validation Error', message: 'Please fill in title, add items, and select at least one supplier' });
       return;
     }
     
@@ -183,17 +207,17 @@ export default function RFQPage() {
       });
 
       if (response.ok) {
-        alert('RFQ created successfully!');
+        showAlert({ type: 'success', title: 'Success', message: 'RFQ created successfully!' });
         setShowCreateModal(false);
         resetForm();
         fetchRFQs();
       } else {
         const data = await response.json();
-        alert(`Error: ${data.error}`);
+        showAlert({ type: 'error', title: 'Error', message: data.error });
       }
     } catch (error) {
       console.error('Error creating RFQ:', error);
-      alert('Failed to create RFQ');
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to create RFQ' });
     }
   };
 
@@ -209,34 +233,40 @@ export default function RFQPage() {
   };
 
   const handleSendRFQ = async (rfqId: string) => {
-    if (!confirm('Send this RFQ to all invited suppliers via email?')) {
-      return;
-    }
+    const token = getAuthToken();
+    if (!token) return;
 
-    try {
-      setSendingRFQ(rfqId);
-      const token = getAuthToken();
-      const response = await fetch(`/api/erp/purchasing/rfq/${rfqId}/send`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+    showConfirm({
+      title: 'Send RFQ',
+      message: 'Send this RFQ to all invited suppliers via email?',
+      confirmText: 'Send RFQ',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          setSendingRFQ(rfqId);
+          const response = await fetch(`/api/erp/purchasing/rfq/${rfqId}/send`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
 
-      if (response.ok) {
-        const data = await response.json();
-        alert(data.message);
-        fetchRFQs(); // Refresh to show updated status
-      } else {
-        const data = await response.json();
-        alert(`Error: ${data.error}`);
+          if (response.ok) {
+            const data = await response.json();
+            showAlert({ type: 'success', title: 'Success', message: data.message });
+            fetchRFQs(); // Refresh to show updated status
+          } else {
+            const data = await response.json();
+            showAlert({ type: 'error', title: 'Error', message: data.error });
+          }
+        } catch (error) {
+          console.error('Error sending RFQ:', error);
+          showAlert({ type: 'error', title: 'Error', message: 'Failed to send RFQ' });
+        } finally {
+          setSendingRFQ(null);
+        }
       }
-    } catch (error) {
-      console.error('Error sending RFQ:', error);
-      alert('Failed to send RFQ');
-    } finally {
-      setSendingRFQ(null);
-    }
+    });
   };
 
   const handleViewRFQ = async (rfqId: string) => {
@@ -253,11 +283,11 @@ export default function RFQPage() {
         setSelectedRFQ(data.rfq);
         setShowViewModal(true);
       } else {
-        alert('Failed to fetch RFQ details');
+        showAlert({ type: 'error', title: 'Error', message: 'Failed to fetch RFQ details' });
       }
     } catch (error) {
       console.error('Error fetching RFQ:', error);
-      alert('Failed to fetch RFQ details');
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to fetch RFQ details' });
     }
   };
 
@@ -271,6 +301,96 @@ export default function RFQPage() {
       cancelled: 'bg-red-100 text-red-800',
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  const handleViewQuotation = async (quotationId: string) => {
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`/api/erp/purchasing/supplier-quotations/${quotationId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // For now, just show alert with basic info
+        // TODO: Create detailed quotation view modal
+        showAlert({
+          type: 'info',
+          title: 'Quotation Details',
+          message: `Quotation from ${data.quotation.supplier_name}\nTotal: ₹${parseFloat(data.quotation.total_amount).toLocaleString('en-IN')}\nStatus: ${data.quotation.status}`,
+        });
+      } else {
+        showAlert({ type: 'error', title: 'Error', message: 'Failed to fetch quotation details' });
+      }
+    } catch (error) {
+      console.error('Error viewing quotation:', error);
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to view quotation' });
+    }
+  };
+
+  const handleAcceptQuotation = async (quotationId: string) => {
+    showConfirm({
+      title: 'Accept Quotation',
+      message: 'Are you sure you want to accept this quotation? This will automatically generate an invoice.',
+      onConfirm: async () => {
+        try {
+          const token = getAuthToken();
+          const response = await fetch(`/api/erp/purchasing/supplier-quotations/${quotationId}/accept`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            showAlert({ type: 'success', title: 'Success', message: data.message });
+            handleViewRFQ(selectedRFQ.id); // Refresh RFQ details
+          } else {
+            const data = await response.json();
+            showAlert({ type: 'error', title: 'Error', message: data.error });
+          }
+        } catch (error) {
+          console.error('Error accepting quotation:', error);
+          showAlert({ type: 'error', title: 'Error', message: 'Failed to accept quotation' });
+        }
+      },
+    });
+  };
+
+  const handleRejectQuotation = async (quotationId: string) => {
+    showConfirm({
+      title: 'Reject Quotation',
+      message: 'Are you sure you want to reject this quotation?',
+      onConfirm: async () => {
+        try {
+          const token = getAuthToken();
+          const response = await fetch(`/api/erp/purchasing/supplier-quotations/${quotationId}/reject`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ rejectionReason: 'Declined by purchaser' }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            showAlert({ type: 'success', title: 'Success', message: data.message });
+            handleViewRFQ(selectedRFQ.id); // Refresh RFQ details
+          } else {
+            const data = await response.json();
+            showAlert({ type: 'error', title: 'Error', message: data.error });
+          }
+        } catch (error) {
+          console.error('Error rejecting quotation:', error);
+          showAlert({ type: 'error', title: 'Error', message: 'Failed to reject quotation' });
+        }
+      },
+    });
   };
 
   return (
@@ -310,9 +430,9 @@ export default function RFQPage() {
           </div>
         </div>
         <div className="bg-white rounded-xl p-5 border border-gray-200">
-          <div className="text-sm font-medium text-gray-600 mb-2">Received</div>
+          <div className="text-sm font-medium text-gray-600 mb-2">Received Quotations</div>
           <div className="text-2xl font-bold text-green-600">
-            {rfqs.filter(r => r.status === 'received').length}
+            {receivedQuotationsCount}
           </div>
         </div>
       </div>
@@ -342,6 +462,7 @@ export default function RFQPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Deadline</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Suppliers</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Items</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Quotes</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -357,6 +478,13 @@ export default function RFQPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rfq.suppliers?.length || 0}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rfq.lines?.length || 0}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        (rfq.quotationsCount || 0) > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {rfq.quotationsCount || 0}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(rfq.status)}`}>
                         {rfq.status.replace('_', ' ').toUpperCase()}
@@ -478,6 +606,69 @@ export default function RFQPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Received Quotations */}
+              {selectedRFQ.quotations && selectedRFQ.quotations.length > 0 && (
+                <div>
+                  <h4 className="font-semibold mb-3">Received Quotations ({selectedRFQ.quotations.length})</h4>
+                  <div className="space-y-3">
+                    {selectedRFQ.quotations.map((quote: any) => (
+                      <div key={quote.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <div className="font-medium text-gray-900">{quote.supplier_name}</div>
+                            <div className="text-sm text-gray-500">
+                              Submitted: {new Date(quote.submission_date || quote.created_at).toLocaleDateString()}
+                            </div>
+                          </div>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            quote.status === 'submitted' ? 'bg-blue-100 text-blue-800' :
+                            quote.status === 'under_review' ? 'bg-yellow-100 text-yellow-800' :
+                            quote.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {quote.status.replace('_', ' ').toUpperCase()}
+                          </span>
+                        </div>
+                        
+                        {quote.total_amount && (
+                          <div className="mb-3">
+                            <span className="text-sm text-gray-600">Total Amount: </span>
+                            <span className="text-lg font-semibold text-gray-900">
+                              ₹{parseFloat(quote.total_amount).toLocaleString('en-IN')}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleViewQuotation(quote.id)}
+                            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
+                          >
+                            View Details
+                          </button>
+                          {quote.status === 'submitted' && (
+                            <>
+                              <button
+                                onClick={() => handleAcceptQuotation(quote.id)}
+                                className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium transition-colors"
+                              >
+                                Accept
+                              </button>
+                              <button
+                                onClick={() => handleRejectQuotation(quote.id)}
+                                className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Notes */}
               {selectedRFQ.notes && (

@@ -6,6 +6,7 @@ import { ChevronDown } from 'lucide-react';
 import { getAuthToken } from '@/lib/utils/token';
 import Barcode from 'react-barcode';
 import ProductModal from '@/components/modal/ProductModal';
+import { useAlert } from '@/components/common/CustomAlert';
 
 interface Supplier {
   id: string;
@@ -49,6 +50,7 @@ interface Product {
 }
 
 export default function ProductsPage() {
+  const { showAlert } = useAlert();
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -183,7 +185,7 @@ export default function ProductsPage() {
 
   const handleGenerateSKU = async () => {
     if (!formData.name.trim()) {
-      alert('Please enter product name first');
+      showAlert({ type: 'error', title: 'Validation Error', message: 'Please enter product name first' });
       return;
     }
 
@@ -205,11 +207,11 @@ export default function ProductsPage() {
         const data = await response.json();
         setFormData({ ...formData, sku: data.code });
       } else {
-        alert('Failed to generate SKU');
+        showAlert({ type: 'error', title: 'Error', message: 'Failed to generate SKU' });
       }
     } catch (error) {
       console.error('Error generating SKU:', error);
-      alert('Failed to generate SKU');
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to generate SKU' });
     } finally {
       setGeneratingSKU(false);
     }
@@ -228,7 +230,7 @@ export default function ProductsPage() {
 
     const token = getAuthToken();
     if (!token) {
-      alert('Not authenticated');
+      showAlert({ type: 'error', title: 'Authentication Error', message: 'Not authenticated' });
       return;
     }
 
@@ -255,14 +257,14 @@ export default function ProductsPage() {
       if (response.ok) {
         resetForm();
         fetchProducts();
-        alert(editingProduct ? 'Product updated successfully!' : 'Product created successfully!');
+        showAlert({ type: 'success', title: 'Success', message: editingProduct ? 'Product updated successfully!' : 'Product created successfully!' });
       } else {
         const error = await response.json();
-        alert(error.error || `Failed to ${editingProduct ? 'update' : 'create'} product`);
+        showAlert({ type: 'error', title: 'Error', message: error.error || `Failed to ${editingProduct ? 'update' : 'create'} product` });
       }
     } catch (error) {
       console.error('Error saving product:', error);
-      alert('Failed to save product');
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to save product' });
     }
   };
 
@@ -342,12 +344,12 @@ export default function ProductsPage() {
     if (file) {
       // Validate file type
       if (!file.type.startsWith('image/')) {
-        alert('Please select an image file');
+        showAlert({ type: 'error', title: 'Invalid File', message: 'Please select an image file' });
         return;
       }
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        alert('Image size should be less than 5MB');
+        showAlert({ type: 'error', title: 'File Too Large', message: 'Image size should be less than 5MB' });
         return;
       }
       

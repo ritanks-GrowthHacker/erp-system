@@ -52,8 +52,8 @@ export const getPurchaseOrderEmailTemplate = (po: PurchaseOrder, organizationNam
         ${line.description ? `<br><span style="color: #6b7280; font-size: 0.875rem;">${line.description}</span>` : ''}
       </td>
       <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: center;">${line.quantity}</td>
-      <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">${po.currencyCode} ${line.unitPrice}</td>
-      <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;"><strong>${po.currencyCode} ${line.total}</strong></td>
+      <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">₹${parseFloat(line.unitPrice).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;"><strong>₹${parseFloat(line.total).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
     </tr>
   `).join('');
 
@@ -115,15 +115,26 @@ export const getPurchaseOrderEmailTemplate = (po: PurchaseOrder, organizationNam
             <tfoot>
               <tr>
                 <td colspan="4" style="padding: 15px; text-align: right; font-weight: 600; color: #1f2937; border-top: 2px solid #e5e7eb;">Total Amount:</td>
-                <td style="padding: 15px; text-align: right; font-weight: 700; color: #667eea; font-size: 18px; border-top: 2px solid #e5e7eb;">${po.currencyCode} ${po.totalAmount}</td>
+                <td style="padding: 15px; text-align: right; font-weight: 700; color: #667eea; font-size: 18px; border-top: 2px solid #e5e7eb;">₹${parseFloat(po.totalAmount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
               </tr>
             </tfoot>
           </table>
 
-          <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 15px; margin-bottom: 25px;">
-            <p style="margin: 0; color: #1e40af; font-size: 14px;">
-              <strong>📋 Next Steps:</strong> Please confirm receipt and acceptance of this PO by replying to this email or contacting us directly.
+          <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 20px; margin-bottom: 25px;">
+            <p style="margin: 0 0 15px 0; color: #1e40af; font-size: 14px;">
+              <strong>📋 Next Steps:</strong>
             </p>
+            <ol style="margin: 0; padding-left: 20px; color: #1e40af; font-size: 14px;">
+              <li style="margin-bottom: 10px;">Login to your supplier portal to view and manage this purchase order</li>
+              <li style="margin-bottom: 10px;">Submit your quotation through the portal</li>
+              <li>Confirm receipt and acceptance by replying to this email or contacting us</li>
+            </ol>
+            <div style="margin-top: 20px; text-align: center;">
+              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/supplier-portal?email=${encodeURIComponent(po.supplierEmail)}" 
+                 style="display: inline-block; padding: 12px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;">
+                Access Supplier Portal
+              </a>
+            </div>
           </div>
 
           <p style="color: #4b5563; line-height: 1.6; margin-bottom: 10px;">
@@ -223,13 +234,19 @@ export const getRFQEmailTemplate = (rfq: RFQ, organizationName: string, organiza
             </tbody>
           </table>
 
-          <div style="background-color: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px; padding: 15px; margin-bottom: 25px;">
+          <div style="background-color: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px; padding: 20px; margin-bottom: 25px;">
             <p style="margin: 0 0 10px 0; color: #92400e; font-size: 14px;">
               <strong>⏰ Important:</strong> ${rfq.deadlineDate ? `Please submit your quotation by <strong>${rfq.deadlineDate}</strong>` : 'Please submit your quotation at your earliest convenience'}.
             </p>
-            <p style="margin: 0; color: #92400e; font-size: 14px;">
+            <p style="margin: 0 0 15px 0; color: #92400e; font-size: 14px;">
               Your quotation should include pricing, delivery time, payment terms, and any other relevant details.
             </p>
+            <div style="text-align: center; margin-top: 15px;">
+              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/supplier-portal" 
+                 style="display: inline-block; padding: 12px 30px; background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%); color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;">
+                Submit via Supplier Portal
+              </a>
+            </div>
           </div>
 
           <p style="color: #4b5563; line-height: 1.6; margin-bottom: 10px;">

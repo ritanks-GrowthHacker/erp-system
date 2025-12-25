@@ -4,21 +4,33 @@ import { useState, useEffect } from 'react';
 import { Input, Textarea } from '@/components/ui/form';
 import { getAuthToken } from '@/lib/utils/token';
 import ReceiveGoodsModal from '@/components/modal/ReceiveGoodsModal';
+import { useAlert } from '@/components/common/CustomAlert';
 
 interface GoodsReceipt {
   id: string;
   receiptNumber: string;
+  receipt_number?: string; // For supplier invoice receipts
   receiptDate: string;
+  created_at?: string; // For supplier invoice receipts
+  receipt_date?: string;
   status: string;
-  purchaseOrder: {
+  purchaseOrder?: {
     poNumber: string;
   };
-  supplier: {
+  po_number?: string;
+  supplier?: {
     name: string;
   };
-  warehouse: {
+  supplier_name?: string;
+  warehouse?: {
     name: string;
   };
+  warehouse_name?: string;
+  invoice_id?: string; // For supplier invoice receipts
+  invoice_number?: string;
+  receipt_type?: string; // 'purchase_order' or 'supplier_invoice'
+  amount?: string;
+  payment_method?: string;
 }
 
 interface PurchaseOrder {
@@ -72,6 +84,7 @@ interface WarehouseLocation {
 }
 
 export default function GoodsReceiptsPage() {
+  const { showAlert } = useAlert();
   const [receipts, setReceipts] = useState<GoodsReceipt[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -109,7 +122,7 @@ export default function GoodsReceiptsPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setReceipts(data.receipts || []);
+        setReceipts(data.goodsReceipts || []);
       }
     } catch (error) {
       console.error('Error fetching goods receipts:', error);
@@ -210,7 +223,7 @@ export default function GoodsReceiptsPage() {
     e.preventDefault();
     
     if (!formData.purchaseOrderId || receiptLines.length === 0) {
-      alert('Please select a purchase order');
+      showAlert({ type: 'error', title: 'Validation Error', message: 'Please select a purchase order' });
       return;
     }
     
@@ -221,7 +234,7 @@ export default function GoodsReceiptsPage() {
     });
     
     if (invalidLines.length > 0) {
-      alert('Please enter valid received quantities for all items');
+      showAlert({ type: 'error', title: 'Validation Error', message: 'Please enter valid received quantities for all items' });
       return;
     }
     
@@ -251,17 +264,17 @@ export default function GoodsReceiptsPage() {
       });
 
       if (response.ok) {
-        alert('Goods receipt created successfully!');
+        showAlert({ type: 'success', title: 'Success', message: 'Goods receipt created successfully!' });
         setShowCreateModal(false);
         resetForm();
         fetchReceipts();
       } else {
         const data = await response.json();
-        alert(`Error: ${data.error}`);
+        showAlert({ type: 'error', title: 'Error', message: data.error });
       }
     } catch (error) {
       console.error('Error creating goods receipt:', error);
-      alert('Failed to create goods receipt');
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to create goods receipt' });
     }
   };
 
@@ -388,29 +401,35 @@ export default function GoodsReceiptsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="bg-white rounded-xl p-5 border border-gray-200">
-          <div className="text-sm font-medium text-gray-600 mb-2">Received</div>
-          <div className="text-2xl font-bold text-blue-600">
-            {receipts.filter(r => r.status === 'received').length}
+          <div className="text-sm font-medium text-gray-600 mb-2">Total Receipts</div>
+          <div className="text-2xl font-bold text-gray-900">
+            {receipts.length}
           </div>
         </div>
         <div className="bg-white rounded-xl p-5 border border-gray-200">
-          <div className="text-sm font-medium text-gray-600 mb-2">Quality Check</div>
-          <div className="text-2xl font-bold text-yellow-600">
-            {receipts.filter(r => r.status === 'quality_check').length}
+          <div className="text-sm font-medium text-gray-600 mb-2">PO Receipts</div>
+          <div className="text-2xl font-bold text-blue-600">
+            {receipts.filter(r => r.receipt_type === 'purchase_order').length}
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Invoice Receipts</div>
+          <div className="text-2xl font-bold text-teal-600">
+            {receipts.filter(r => r.receipt_type === 'supplier_invoice').length}
           </div>
         </div>
         <div className="bg-white rounded-xl p-5 border border-gray-200">
           <div className="text-sm font-medium text-gray-600 mb-2">Accepted</div>
           <div className="text-2xl font-bold text-green-600">
-            {receipts.filter(r => r.status === 'accepted').length}
+            {receipts.filter(r => r.status === 'accepted' || r.status === 'downloaded').length}
           </div>
         </div>
         <div className="bg-white rounded-xl p-5 border border-gray-200">
-          <div className="text-sm font-medium text-gray-600 mb-2">Rejected</div>
-          <div className="text-2xl font-bold text-red-600">
-            {receipts.filter(r => r.status === 'rejected').length}
+          <div className="text-sm font-medium text-gray-600 mb-2">Pending</div>
+          <div className="text-2xl font-bold text-yellow-600">
+            {receipts.filter(r => r.status === 'received' || r.status === 'quality_check' || r.status === 'pending').length}
           </div>
         </div>
       </div>
@@ -439,7 +458,8 @@ export default function GoodsReceiptsPage() {
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Receipt #</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Date</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">PO Number</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Type</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">PO/Invoice</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Supplier</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Warehouse</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Status</th>
@@ -449,11 +469,35 @@ export default function GoodsReceiptsPage() {
                 <tbody className="divide-y divide-gray-200">
                   {receipts.map((receipt) => (
                     <tr key={receipt.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium text-gray-900">{receipt.receiptNumber}</td>
-                      <td className="px-4 py-3 text-gray-600">{new Date(receipt.receiptDate).toLocaleDateString()}</td>
-                      <td className="px-4 py-3 text-gray-600">{receipt.purchaseOrder.poNumber}</td>
-                      <td className="px-4 py-3 text-gray-600">{receipt.supplier.name}</td>
-                      <td className="px-4 py-3 text-gray-600">{receipt.warehouse.name}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">
+                        {receipt.receiptNumber || receipt.receipt_number}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {new Date(receipt.receiptDate || receipt.created_at || receipt.receipt_date || '').toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          receipt.receipt_type === 'supplier_invoice' 
+                            ? 'bg-purple-100 text-purple-800' 
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {receipt.receipt_type === 'supplier_invoice' ? 'Invoice' : 'PO'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {receipt.receipt_type === 'supplier_invoice' 
+                          ? (receipt.invoice_number || 'N/A')
+                          : (receipt.purchaseOrder?.poNumber || receipt.po_number || 'N/A')}
+                        {receipt.invoice_id && (
+                          <div className="text-xs text-gray-500">ID: {receipt.invoice_id.substring(0, 8)}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {receipt.supplier?.name || receipt.supplier_name || 'N/A'}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {receipt.warehouse?.name || receipt.warehouse_name || 'N/A'}
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(receipt.status)}`}>
                           {receipt.status.replace('_', ' ').toUpperCase()}
@@ -461,14 +505,42 @@ export default function GoodsReceiptsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
-                          <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">View</button>
-                          {receipt.status === 'received' && (
+                          {receipt.receipt_type === 'supplier_invoice' ? (
                             <button 
-                              onClick={() => handleAcceptReceipt(receipt.id)}
-                              className="text-sm text-green-600 hover:text-green-800 font-medium"
+                              onClick={async () => {
+                                const token = getAuthToken();
+                                const response = await fetch(`/api/erp/purchasing/receipts/${receipt.id}/download`, {
+                                  headers: { Authorization: `Bearer ${token}` }
+                                });
+                                
+                                if (response.ok) {
+                                  const blob = await response.blob();
+                                  const url = window.URL.createObjectURL(blob);
+                                  const a = document.createElement('a');
+                                  a.href = url;
+                                  a.download = `Receipt_${receipt.receipt_number}.html`;
+                                  document.body.appendChild(a);
+                                  a.click();
+                                  window.URL.revokeObjectURL(url);
+                                  document.body.removeChild(a);
+                                }
+                              }}
+                              className="text-sm text-purple-600 hover:text-purple-800 font-medium"
                             >
-                              Accept/Reject
+                              Download
                             </button>
+                          ) : (
+                            <>
+                              <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">View</button>
+                              {receipt.status === 'received' && (
+                                <button 
+                                  onClick={() => handleAcceptReceipt(receipt.id)}
+                                  className="text-sm text-green-600 hover:text-green-800 font-medium"
+                                >
+                                  Accept/Reject
+                                </button>
+                              )}
+                            </>
                           )}
                         </div>
                       </td>

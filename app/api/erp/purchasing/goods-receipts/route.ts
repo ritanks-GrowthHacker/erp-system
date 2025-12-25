@@ -22,12 +22,16 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status');
     const purchaseOrderId = searchParams.get('purchaseOrderId');
 
+    // Fetch goods receipts from purchase orders
     const result = await erpDb.execute(sql`
       SELECT 
         gr.*,
         po.po_number,
         s.name as supplier_name,
         w.name as warehouse_name,
+        NULL as invoice_id,
+        NULL as invoice_number,
+        'purchase_order' as receipt_type,
         COUNT(grl.id) as line_count,
         SUM(grl.quantity_received) as total_qty_received,
         SUM(grl.quantity_accepted) as total_qty_accepted,
@@ -44,7 +48,39 @@ export async function GET(req: NextRequest) {
       ORDER BY gr.created_at DESC
     `);
 
-    return NextResponse.json({ goodsReceipts: Array.from(result) });
+    // Fetch supplier invoice receipts
+    const supplierReceipts = await erpDb.execute(sql`
+      SELECT 
+        r.id,
+        r.receipt_number,
+        r.receipt_date as created_at,
+        r.amount,
+        r.payment_method,
+        r.payment_reference,
+        r.status,
+        r.notes,
+        s.name as supplier_name,
+        si.id as invoice_id,
+        si.invoice_number,
+        'supplier_invoice' as receipt_type,
+        NULL as po_number,
+        NULL as warehouse_name,
+        NULL as line_count,
+        NULL as total_qty_received,
+        NULL as total_qty_accepted,
+        NULL as total_qty_rejected
+      FROM supplier_invoice_receipts r
+      JOIN suppliers s ON r.supplier_id = s.id
+      JOIN supplier_invoices si ON r.invoice_id = si.id
+      WHERE r.erp_organization_id = ${user.erpOrganizationId}
+      ${status ? sql`AND r.status = ${status}` : sql``}
+      ORDER BY r.receipt_date DESC
+    `);
+
+    // Combine both receipt types
+    const allReceipts = [...Array.from(result), ...Array.from(supplierReceipts)];
+
+    return NextResponse.json({ goodsReceipts: allReceipts });
   } catch (error: any) {
     logDatabaseError('Fetching goods receipts', error);
     const dbError = handleDatabaseError(error);

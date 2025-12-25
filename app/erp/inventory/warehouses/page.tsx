@@ -7,6 +7,7 @@ import { ChevronDown } from 'lucide-react';
 import React from 'react';
 import WarehouseModal from '@/components/modal/WarehouseModal';
 import AddProductToWarehouseModal from '@/components/modal/AddProductToWarehouseModal';
+import { useAlert } from '@/components/common/CustomAlert';
 
 interface Warehouse {
   id: string;
@@ -33,6 +34,7 @@ interface Warehouse {
 }
 
 export default function WarehousesPage() {
+  const { showAlert, showConfirm } = useAlert();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -183,28 +185,34 @@ export default function WarehousesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this warehouse?')) return;
-
     const token = getAuthToken();
     if (!token) return;
 
-    try {
-      const response = await fetch(`/api/erp/inventory/warehouses/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+    showConfirm({
+      title: 'Delete Warehouse',
+      message: 'Are you sure you want to delete this warehouse?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/erp/inventory/warehouses/${id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+          });
 
-      if (response.ok) {
-        await fetchWarehouses();
-        alert('Warehouse deleted successfully!');
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Failed to delete warehouse');
+          if (response.ok) {
+            await fetchWarehouses();
+            showAlert({ type: 'success', title: 'Success', message: 'Warehouse deleted successfully!' });
+          } else {
+            const error = await response.json();
+            showAlert({ type: 'error', title: 'Error', message: error.error || 'Failed to delete warehouse' });
+          }
+        } catch (error) {
+          console.error('Error deleting warehouse:', error);
+          showAlert({ type: 'error', title: 'Error', message: 'Failed to delete warehouse' });
+        }
       }
-    } catch (error) {
-      console.error('Error deleting warehouse:', error);
-      alert('Failed to delete warehouse');
-    }
+    });
   };
 
   const resetForm = () => {

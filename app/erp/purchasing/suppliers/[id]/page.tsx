@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,10 @@ import {
   TableCell,
 } from '@/components/ui/table';
 import { createPortal } from 'react-dom';
+import { useAlert } from '@/components/common/CustomAlert';
+import QuotationViewModal from '@/components/modal/QuotationViewModal';
+import EditSupplierModal from '@/components/modal/EditSupplierModal';
+import { ChevronDown } from 'lucide-react';
 
 interface Supplier {
   id: string;
@@ -64,14 +68,37 @@ interface RFQ {
 
 interface Invoice {
   id: string;
-  invoiceNumber: string;
-  invoiceDate: string;
-  dueDate: string;
-  totalAmount: string;
+  // ERP vendor invoice fields
+  invoiceNumber?: string;
+  invoiceDate?: string;
+  dueDate?: string;
+  totalAmount?: string;
+  status?: string;
+  // Supplier portal invoice fields
+  invoice_number?: string;
+  invoice_date?: string;
+  due_date?: string;
+  total_amount?: string;
+  payment_status?: string;
+}
+
+interface Quotation {
+  id: string;
+  submission_number: string;
+  submission_date: string;
   status: string;
+  total_amount: string;
+  valid_until: string;
+  delivery_time_in_days: number;
+  rfq_number: string;
+  rfq_title: string;
+  quotation_type: string;
+  file_url?: string;
+  file_name?: string;
 }
 
 export default function SupplierDetailPage() {
+  const { showAlert, showConfirm } = useAlert();
   const params = useParams();
   const router = useRouter();
   const supplierId = params?.id as string;
@@ -79,18 +106,17 @@ export default function SupplierDetailPage() {
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [rfqs, setRfqs] = useState<RFQ[]>([]);
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [receipts, setReceipts] = useState<any[]>([]);
   const [statistics, setStatistics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'pos' | 'rfqs' | 'invoices'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'pos' | 'rfqs' | 'quotations' | 'invoices' | 'receipts'>('overview');
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFormData, setEditFormData] = useState<any>(null);
-  const [showPOModal, setShowPOModal] = useState(false);
-  const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
-  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-  const [showRFQModal, setShowRFQModal] = useState(false);
-  const [selectedRFQ, setSelectedRFQ] = useState<RFQ | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [showQuotationModal, setShowQuotationModal] = useState(false);
+  const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
 
   useEffect(() => {
     if (supplierId) {
@@ -111,14 +137,16 @@ export default function SupplierDetailPage() {
         setSupplier(data.supplier);
         setPurchaseOrders(data.purchaseOrders || []);
         setRfqs(data.rfqs || []);
+        setQuotations(data.quotations || []);
         setInvoices(data.invoices || []);
+        setReceipts(data.receipts || []);
         setStatistics(data.statistics);
       } else {
-        alert('Failed to fetch supplier details');
+        showAlert({ type: 'error', title: 'Error', message: 'Failed to fetch supplier details' });
       }
     } catch (error) {
       console.error('Failed to fetch supplier details:', error);
-      alert('Failed to fetch supplier details');
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to fetch supplier details' });
     } finally {
       setLoading(false);
     }
@@ -164,30 +192,104 @@ export default function SupplierDetailPage() {
       if (response.ok) {
         setShowEditModal(false);
         fetchSupplierDetails();
-        alert('Supplier updated successfully');
+        showAlert({ type: 'success', title: 'Success', message: 'Supplier updated successfully' });
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to update supplier');
+        showAlert({ type: 'error', title: 'Error', message: error.error || 'Failed to update supplier' });
       }
     } catch (error) {
       console.error('Failed to update supplier:', error);
-      alert('Failed to update supplier');
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to update supplier' });
     }
   };
 
-  const handleViewPO = (po: PurchaseOrder) => {
-    setSelectedPO(po);
-    setShowPOModal(true);
+  const handleAcceptQuotation = async (quotationId: string) => {
+    showConfirm({
+      title: 'Accept Quotation',
+      message: 'Are you sure you want to accept this quotation?',
+      confirmText: 'Accept',
+      confirmVariant: 'primary',
+      onConfirm: async () => {
+        const token = getAuthToken();
+        if (!token) return;
+
+        try {
+          const response = await fetch('/api/erp/purchasing/supplier-quotations', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              quotationId,
+              status: 'accepted',
+            }),
+          });
+
+          if (response.ok) {
+            showAlert({ type: 'success', title: 'Success', message: 'Quotation accepted successfully!' });
+            setShowQuotationModal(false);
+            fetchSupplierDetails();
+          } else {
+            const data = await response.json();
+            showAlert({ type: 'error', title: 'Error', message: data.error });
+          }
+        } catch (error) {
+          console.error('Error accepting quotation:', error);
+          showAlert({ type: 'error', title: 'Error', message: 'Failed to accept quotation' });
+        }
+      },
+    });
   };
 
-  const handleViewInvoice = (invoice: Invoice) => {
-    setSelectedInvoice(invoice);
-    setShowInvoiceModal(true);
+  const handleRejectQuotation = async (quotationId: string) => {
+    showConfirm({
+      title: 'Reject Quotation',
+      message: 'Are you sure you want to reject this quotation? This will notify the supplier.',
+      confirmText: 'Reject',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        const token = getAuthToken();
+        if (!token) return;
+
+        try {
+          const response = await fetch('/api/erp/purchasing/supplier-quotations', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              quotationId,
+              status: 'rejected',
+              rejectionNotes: 'Rejected by customer',
+            }),
+          });
+
+          if (response.ok) {
+            showAlert({ type: 'success', title: 'Success', message: 'Quotation rejected' });
+            setShowQuotationModal(false);
+            fetchSupplierDetails();
+          } else {
+            const data = await response.json();
+            showAlert({ type: 'error', title: 'Error', message: data.error });
+          }
+        } catch (error) {
+          console.error('Error rejecting quotation:', error);
+          showAlert({ type: 'error', title: 'Error', message: 'Failed to reject quotation' });
+        }
+      },
+    });
   };
 
-  const handleViewRFQ = (rfq: RFQ) => {
-    setSelectedRFQ(rfq);
-    setShowRFQModal(true);
+  const toggleRow = (id: string) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
+    } else {
+      newExpanded.add(id);
+    }
+    setExpandedRows(newExpanded);
   };
 
   const getStatusColor = (status: string) => {
@@ -207,12 +309,24 @@ export default function SupplierDetailPage() {
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
+  const getQuotationStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      draft: 'bg-gray-100 text-gray-800',
+      submitted: 'bg-blue-100 text-blue-800',
+      under_review: 'bg-yellow-100 text-yellow-800',
+      accepted: 'bg-green-100 text-green-800',
+      rejected: 'bg-red-100 text-red-800',
+      expired: 'bg-gray-100 text-gray-800',
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading supplier details...</p>
+      <div className="p-6">
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
+          <p className="text-gray-500 mt-4">Loading supplier details...</p>
         </div>
       </div>
     );
@@ -220,41 +334,37 @@ export default function SupplierDetailPage() {
 
   if (!supplier) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
+      <div className="p-6">
+        <div className="text-center py-12">
           <p className="text-gray-600 mb-4">Supplier not found</p>
-          <Button onClick={() => router.push('/erp/purchasing/suppliers')}>
+          <button
+            onClick={() => router.push('/erp/purchasing/suppliers')}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
             Back to Suppliers
-          </Button>
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6">
       {/* Header */}
-      <div className="flex justify-between items-start">
+      <div className="flex justify-between items-start mb-6">
         <div>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="secondary"
-              onClick={() => router.push('/erp/purchasing/suppliers')}
-            >
-              ← Back
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold">{supplier.name}</h1>
-              <p className="text-gray-500 mt-1">Supplier Code: {supplier.code}</p>
-            </div>
-          </div>
+          <h2 className="text-2xl font-semibold text-gray-900 italic">{supplier.name}</h2>
+          <p className="text-sm text-gray-500 mt-1">Supplier Code: {supplier.code}</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={handleEditClick}>
-            ✏️ Edit
-          </Button>
+        <div className="flex gap-2 items-center">
+          <button
+            onClick={handleEditClick}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Edit
+          </button>
           <span
-            className={`px-3 py-2 rounded-full text-sm font-medium ${
+            className={`px-3 py-1.5 rounded-full text-xs font-medium ${
               supplier.isActive
                 ? 'bg-green-100 text-green-800'
                 : 'bg-gray-100 text-gray-800'
@@ -266,84 +376,48 @@ export default function SupplierDetailPage() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-blue-600">
-              {statistics?.totalPurchaseOrders || 0}
-            </div>
-            <div className="text-sm text-gray-500">Total Purchase Orders</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-yellow-600">
-              {statistics?.pendingPurchaseOrders || 0}
-            </div>
-            <div className="text-sm text-gray-500">Pending POs</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-purple-600">
-              {statistics?.totalRFQs || 0}
-            </div>
-            <div className="text-sm text-gray-500">RFQs Sent</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-green-600">
-              ₹{parseFloat(statistics?.totalPurchaseValue || 0).toLocaleString('en-IN')}
-            </div>
-            <div className="text-sm text-gray-500">Total Purchase Value</div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Total Purchase Orders</div>
+          <div className="text-2xl font-bold text-gray-900">{statistics?.totalPurchaseOrders || 0}</div>
+        </div>
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Pending POs</div>
+          <div className="text-2xl font-bold text-yellow-600">{statistics?.pendingPurchaseOrders || 0}</div>
+        </div>
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">RFQs Sent</div>
+          <div className="text-2xl font-bold text-purple-600">{statistics?.totalRFQs || 0}</div>
+        </div>
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Total Purchase Value</div>
+          <div className="text-2xl font-bold text-green-600">
+            ₹{parseFloat(statistics?.totalPurchaseValue || 0).toLocaleString('en-IN')}
+          </div>
+        </div>
       </div>
 
       {/* Tabs */}
-      <div className="border-b">
+      <div className="border-b mb-6">
         <div className="flex gap-4">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`pb-3 px-1 font-medium text-sm ${
-              activeTab === 'overview'
-                ? 'border-b-2 border-blue-600 text-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveTab('pos')}
-            className={`pb-3 px-1 font-medium text-sm ${
-              activeTab === 'pos'
-                ? 'border-b-2 border-blue-600 text-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Purchase Orders ({purchaseOrders.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('rfqs')}
-            className={`pb-3 px-1 font-medium text-sm ${
-              activeTab === 'rfqs'
-                ? 'border-b-2 border-blue-600 text-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            RFQs ({rfqs.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('invoices')}
-            className={`pb-3 px-1 font-medium text-sm ${
-              activeTab === 'invoices'
-                ? 'border-b-2 border-blue-600 text-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Invoices ({invoices.length})
-          </button>
+          {['overview', 'pos', 'rfqs', 'quotations', 'invoices', 'receipts'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab as any)}
+              className={`pb-3 px-1 font-medium text-sm ${
+                activeTab === tab
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab === 'overview' && 'Overview'}
+              {tab === 'pos' && `Purchase Orders (${purchaseOrders.length})`}
+              {tab === 'rfqs' && `RFQs (${rfqs.length})`}
+              {tab === 'quotations' && `Quotations (${quotations.length})`}
+              {tab === 'invoices' && `Invoices (${invoices.length})`}
+              {tab === 'receipts' && `Receipts (${receipts.length})`}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -351,782 +425,685 @@ export default function SupplierDetailPage() {
       {activeTab === 'overview' && (
         <div className="grid grid-cols-2 gap-6">
           {/* Contact Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Contact Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h3 className="text-base font-semibold text-gray-900 mb-4">Contact Information</h3>
+            <div className="space-y-3">
               <div>
-                <div className="text-sm text-gray-500">Email</div>
-                <div className="font-medium">{supplier.email || '—'}</div>
+                <div className="text-xs text-gray-500">Email</div>
+                <div className="text-sm font-medium">{supplier.email || '—'}</div>
               </div>
               <div>
-                <div className="text-sm text-gray-500">Phone</div>
-                <div className="font-medium">{supplier.phone || '—'}</div>
+                <div className="text-xs text-gray-500">Phone</div>
+                <div className="text-sm font-medium">{supplier.phone || '—'}</div>
               </div>
               <div>
-                <div className="text-sm text-gray-500">Website</div>
-                <div className="font-medium">{supplier.website || '—'}</div>
+                <div className="text-xs text-gray-500">Website</div>
+                <div className="text-sm font-medium">{supplier.website || '—'}</div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Address */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Address</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h3 className="text-base font-semibold text-gray-900 mb-4">Address</h3>
+            <div className="space-y-3">
               <div>
-                <div className="text-sm text-gray-500">Street Address</div>
-                <div className="font-medium">{supplier.address || '—'}</div>
+                <div className="text-xs text-gray-500">Street Address</div>
+                <div className="text-sm font-medium">{supplier.address || '—'}</div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <div className="text-sm text-gray-500">City</div>
-                  <div className="font-medium">{supplier.city || '—'}</div>
+                  <div className="text-xs text-gray-500">City</div>
+                  <div className="text-sm font-medium">{supplier.city || '—'}</div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500">State</div>
-                  <div className="font-medium">{supplier.state || '—'}</div>
+                  <div className="text-xs text-gray-500">State</div>
+                  <div className="text-sm font-medium">{supplier.state || '—'}</div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500">Country</div>
-                  <div className="font-medium">{supplier.country || '—'}</div>
+                  <div className="text-xs text-gray-500">Country</div>
+                  <div className="text-sm font-medium">{supplier.country || '—'}</div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500">Postal Code</div>
-                  <div className="font-medium">{supplier.postalCode || '—'}</div>
+                  <div className="text-xs text-gray-500">Postal Code</div>
+                  <div className="text-sm font-medium">{supplier.postalCode || '—'}</div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Financial Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Financial Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h3 className="text-base font-semibold text-gray-900 mb-4">Financial Information</h3>
+            <div className="space-y-3">
               <div>
-                <div className="text-sm text-gray-500">Tax ID / GST</div>
-                <div className="font-medium">{supplier.taxId || '—'}</div>
+                <div className="text-xs text-gray-500">Tax ID / GST</div>
+                <div className="text-sm font-medium">{supplier.taxId || '—'}</div>
               </div>
               <div>
-                <div className="text-sm text-gray-500">Payment Terms</div>
-                <div className="font-medium">{supplier.paymentTerms} days</div>
+                <div className="text-xs text-gray-500">Payment Terms</div>
+                <div className="text-sm font-medium">{supplier.paymentTerms} days</div>
               </div>
               <div>
-                <div className="text-sm text-gray-500">Currency</div>
-                <div className="font-medium">{supplier.currencyCode}</div>
+                <div className="text-xs text-gray-500">Currency</div>
+                <div className="text-sm font-medium">{supplier.currencyCode}</div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Contact Persons */}
           {supplier.contacts && supplier.contacts.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Contact Persons</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {supplier.contacts.map((contact) => (
-                    <div key={contact.id} className="border-b pb-3 last:border-0 last:pb-0">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="font-medium">{contact.name}</div>
-                          <div className="text-sm text-gray-500">{contact.position}</div>
-                        </div>
-                        {contact.isPrimary && (
-                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                            Primary
-                          </span>
-                        )}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 className="text-base font-semibold text-gray-900 mb-4">Contact Persons</h3>
+              <div className="space-y-3">
+                {supplier.contacts.map((contact) => (
+                  <div key={contact.id} className="border-b pb-3 last:border-0 last:pb-0">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="text-sm font-medium">{contact.name}</div>
+                        <div className="text-xs text-gray-500">{contact.position}</div>
                       </div>
-                      <div className="text-sm text-gray-600 mt-1">
-                        {contact.email} • {contact.phone}
-                      </div>
+                      {contact.isPrimary && (
+                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                          Primary
+                        </span>
+                      )}
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    <div className="text-xs text-gray-600 mt-1">
+                      {contact.email} • {contact.phone}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
           {/* Notes */}
           {supplier.notes && (
-            <Card className="col-span-2">
-              <CardHeader>
-                <CardTitle>Notes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-700 whitespace-pre-wrap">{supplier.notes}</p>
-              </CardContent>
-            </Card>
+            <div className="col-span-2 bg-white rounded-xl border border-gray-200 p-6">
+              <h3 className="text-base font-semibold text-gray-900 mb-4">Notes</h3>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">{supplier.notes}</p>
+            </div>
           )}
         </div>
       )}
 
       {activeTab === 'pos' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Purchase Orders</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-base font-semibold text-gray-900">Purchase Orders</h3>
+            <p className="text-sm text-gray-500">{purchaseOrders.length} orders found</p>
+          </div>
+          <div className="overflow-x-auto">
             {purchaseOrders.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                No purchase orders found for this supplier.
+              <div className="text-center py-12 px-4">
+                <div className="text-6xl mb-4">📦</div>
+                <p className="text-gray-500 text-lg mb-2">No purchase orders found</p>
+                <p className="text-gray-400 text-sm">Purchase orders will appear here once created.</p>
               </div>
             ) : (
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>PO Number</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Expected Delivery</TableHead>
-                    <TableHead>Items</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
+                  <TableRow className="bg-gray-50/80">
+                    <TableHead className="font-semibold text-gray-700">PO Number</TableHead>
+                    <TableHead className="font-semibold text-gray-700">Date</TableHead>
+                    <TableHead className="font-semibold text-gray-700">Expected Delivery</TableHead>
+                    <TableHead className="font-semibold text-gray-700">Items</TableHead>
+                    <TableHead className="font-semibold text-gray-700">Amount</TableHead>
+                    <TableHead className="font-semibold text-gray-700">Status</TableHead>
+                    <TableHead className="font-semibold text-gray-700 text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {purchaseOrders.map((po) => (
-                    <TableRow
-                      key={po.id}
-                      onClick={() => handleViewPO(po)}
-                      className="cursor-pointer hover:bg-gray-100"
-                    >
-                      <TableCell className="font-medium">{po.poNumber}</TableCell>
-                      <TableCell>{new Date(po.poDate).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        {po.expectedDeliveryDate
-                          ? new Date(po.expectedDeliveryDate).toLocaleDateString()
-                          : '—'}
-                      </TableCell>
-                      <TableCell>{po.lines?.length || 0}</TableCell>
-                      <TableCell className="font-medium">
-                        ₹{parseFloat(po.totalAmount).toLocaleString('en-IN')}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                            po.status
-                          )}`}
-                        >
-                          {po.status.replace('_', ' ').toUpperCase()}
-                        </span>
-                      </TableCell>
-                    </TableRow>
+                    <React.Fragment key={po.id}>
+                      <TableRow className="hover:bg-blue-50 cursor-pointer transition-colors">
+                        <TableCell className="font-medium text-gray-900">{po.poNumber}</TableCell>
+                        <TableCell className="text-sm">{new Date(po.poDate).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-sm">
+                          {po.expectedDeliveryDate
+                            ? new Date(po.expectedDeliveryDate).toLocaleDateString()
+                            : '—'}
+                        </TableCell>
+                        <TableCell className="text-sm">{po.lines?.length || 0}</TableCell>
+                        <TableCell className="font-semibold text-gray-900 text-sm">
+                          ₹{parseFloat(po.totalAmount).toLocaleString('en-IN')}
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                              po.status
+                            )}`}
+                          >
+                            {po.status.replace('_', ' ').toUpperCase()}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <button
+                            onClick={() => toggleRow(po.id)}
+                            className="inline-flex items-center justify-center w-8 h-8 rounded hover:bg-gray-100 transition-colors"
+                          >
+                            <ChevronDown
+                              className={`w-5 h-5 text-gray-600 transition-transform ${
+                                expandedRows.has(po.id) ? 'rotate-180' : ''
+                              }`}
+                            />
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                      {expandedRows.has(po.id) && (
+                        <TableRow className="bg-gray-50">
+                          <TableCell colSpan={7} className="p-0">
+                            <div className="p-6 space-y-4">
+                              {/* PO Details Header */}
+                              <div className="grid grid-cols-3 gap-4 border-b border-gray-200 pb-4">
+                                <div>
+                                  <div className="text-xs text-gray-500 mb-1">PO Number</div>
+                                  <div className="font-semibold text-gray-900">{po.poNumber}</div>
+                                </div>
+                                <div>
+                                  <div className="text-xs text-gray-500 mb-1">PO Date</div>
+                                  <div className="font-medium text-gray-900">
+                                    {new Date(po.poDate).toLocaleDateString()}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="text-xs text-gray-500 mb-1">Expected Delivery</div>
+                                  <div className="font-medium text-gray-900">
+                                    {po.expectedDeliveryDate
+                                      ? new Date(po.expectedDeliveryDate).toLocaleDateString()
+                                      : '—'}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Line Items */}
+                              <div>
+                                <h4 className="text-sm font-semibold text-gray-900 mb-3">Line Items</h4>
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-sm">
+                                    <thead className="bg-gray-100">
+                                      <tr>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                          Product
+                                        </th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">
+                                          SKU
+                                        </th>
+                                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-600">
+                                          Quantity
+                                        </th>
+                                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-600">
+                                          Unit Price
+                                        </th>
+                                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-600">
+                                          Total
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                      {po.lines && po.lines.length > 0 ? (
+                                        po.lines.map((line: any, index: number) => (
+                                          <tr key={index} className="hover:bg-white">
+                                            <td className="px-4 py-3">
+                                              <div className="font-medium text-gray-900">
+                                                {line.product?.name || line.productName || '—'}
+                                              </div>
+                                              {line.description && (
+                                                <div className="text-xs text-gray-500">{line.description}</div>
+                                              )}
+                                            </td>
+                                            <td className="px-4 py-3 text-gray-600">
+                                              {line.product?.sku || line.productSku || line.sku || '—'}
+                                            </td>
+                                            <td className="px-4 py-3 text-right font-medium">
+                                              {line.quantityOrdered || line.quantity || 0}
+                                            </td>
+                                            <td className="px-4 py-3 text-right">
+                                              ₹{parseFloat(line.unitPrice || 0).toLocaleString('en-IN')}
+                                            </td>
+                                            <td className="px-4 py-3 text-right font-semibold">
+                                              ₹
+                                              {(
+                                                (line.quantityOrdered || line.quantity || 0) *
+                                                parseFloat(line.unitPrice || 0)
+                                              ).toLocaleString('en-IN')}
+                                            </td>
+                                          </tr>
+                                        ))
+                                      ) : (
+                                        <tr>
+                                          <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                                            No line items found
+                                          </td>
+                                        </tr>
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+
+                              {/* Total Section */}
+                              <div className="flex justify-end pt-4 border-t border-gray-200">
+                                <div className="w-64 space-y-2">
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Subtotal:</span>
+                                    <span className="font-medium">
+                                      ₹{parseFloat(po.totalAmount || '0').toLocaleString('en-IN')}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between text-base font-semibold pt-2 border-t">
+                                    <span>Total Amount:</span>
+                                    <span className="text-blue-600">
+                                      ₹{parseFloat(po.totalAmount || '0').toLocaleString('en-IN')}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </React.Fragment>
                   ))}
                 </TableBody>
               </Table>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {activeTab === 'rfqs' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Request for Quotations</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {rfqs.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                No RFQs sent to this supplier.
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>RFQ Number</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Deadline</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rfqs.map((rfq) => (
-                    <TableRow
-                      key={rfq.id}
-                      onClick={() => handleViewRFQ(rfq)}
-                      className="cursor-pointer hover:bg-gray-100"
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+        <h3 className="text-base font-semibold text-gray-900">Request for Quotations</h3>
+        <p className="text-sm text-gray-500">{rfqs.length} RFQs found</p>
+      </div>
+      <div className="overflow-x-auto">
+        {rfqs.length === 0 ? (
+          <div className="text-center py-12 px-4">
+            <div className="text-6xl mb-4">📋</div>
+            <p className="text-gray-500 text-lg mb-2">No RFQs sent</p>
+            <p className="text-gray-400 text-sm">RFQs sent to this supplier will appear here.</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-gray-50/80">
+                <TableHead className="font-semibold text-gray-700">RFQ Number</TableHead>
+                <TableHead className="font-semibold text-gray-700">Date</TableHead>
+                <TableHead className="font-semibold text-gray-700">Title</TableHead>
+                <TableHead className="font-semibold text-gray-700">Deadline</TableHead>
+                <TableHead className="font-semibold text-gray-700">Status</TableHead>
+                <TableHead className="font-semibold text-gray-700 text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rfqs.map((rfq) => (
+                <TableRow key={rfq.id} className="hover:bg-blue-50 cursor-pointer transition-colors">
+                  <TableCell className="font-medium text-gray-900">{rfq.rfqNumber}</TableCell>
+                  <TableCell className="text-sm">{new Date(rfq.rfqDate).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-sm">{rfq.title}</TableCell>
+                  <TableCell className="text-sm">
+                    {rfq.deadlineDate ? new Date(rfq.deadlineDate).toLocaleDateString() : '—'}
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                        rfq.status
+                      )}`}
                     >
-                      <TableCell className="font-medium">{rfq.rfqNumber}</TableCell>
-                      <TableCell>{new Date(rfq.rfqDate).toLocaleDateString()}</TableCell>
-                      <TableCell>{rfq.title}</TableCell>
-                      <TableCell>
-                        {rfq.deadlineDate
-                          ? new Date(rfq.deadlineDate).toLocaleDateString()
-                          : '—'}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                            rfq.status
-                          )}`}
-                        >
-                          {rfq.status.replace('_', ' ').toUpperCase()}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {activeTab === 'invoices' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Purchase Invoices</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {invoices.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                No invoices found for this supplier.
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Invoice Number</TableHead>
-                    <TableHead>Invoice Date</TableHead>
-                    <TableHead>Due Date</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {invoices.map((invoice) => (
-                    <TableRow
-                      key={invoice.id}
-                      onClick={() => handleViewInvoice(invoice)}
-                      className="cursor-pointer hover:bg-gray-100"
+                      {rfq.status.replace('_', ' ').toUpperCase()}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <button
+                      onClick={() => toggleRow(rfq.id)}
+                      className="inline-flex items-center justify-center w-8 h-8 rounded hover:bg-gray-100 transition-colors"
                     >
-                      <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
-                      <TableCell>{new Date(invoice.invoiceDate).toLocaleDateString()}</TableCell>
-                      <TableCell>{new Date(invoice.dueDate).toLocaleDateString()}</TableCell>
-                      <TableCell className="font-medium">
-                        ₹{parseFloat(invoice.totalAmount).toLocaleString('en-IN')}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                            invoice.status
-                          )}`}
-                        >
-                          {invoice.status.toUpperCase()}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Purchase Order Modal */}
-      {showPOModal &&
-        selectedPO &&
-        typeof window !== 'undefined' &&
-        createPortal(
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold">Purchase Order Details</h2>
-                  <p className="text-gray-500 mt-1">PO #{selectedPO.poNumber}</p>
-                </div>
-                <button
-                  onClick={() => setShowPOModal(false)}
-                  className="text-gray-500 hover:text-gray-700 text-2xl"
-                >
-                  ×
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-6 mb-6">
-                <div>
-                  <div className="text-sm text-gray-500">PO Date</div>
-                  <div className="font-medium">{new Date(selectedPO.poDate).toLocaleDateString()}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-500">Expected Delivery</div>
-                  <div className="font-medium">
-                    {selectedPO.expectedDeliveryDate
-                      ? new Date(selectedPO.expectedDeliveryDate).toLocaleDateString()
-                      : '—'}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-500">Status</div>
-                  <span
-                    className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                      selectedPO.status
-                    )}`}
-                  >
-                    {selectedPO.status.replace('_', ' ').toUpperCase()}
-                  </span>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-500">Total Amount</div>
-                  <div className="text-xl font-bold text-green-600">
-                    ₹{parseFloat(selectedPO.totalAmount).toLocaleString('en-IN')}
-                  </div>
-                </div>
-              </div>
-
-              {selectedPO.lines && selectedPO.lines.length > 0 && (
-                <div>
-                  <h3 className="font-semibold text-lg mb-3">Order Items</h3>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 border">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-sm font-semibold">Product</th>
-                          <th className="px-4 py-2 text-right text-sm font-semibold">Quantity</th>
-                          <th className="px-4 py-2 text-right text-sm font-semibold">Unit Price</th>
-                          <th className="px-4 py-2 text-right text-sm font-semibold">Total</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {selectedPO.lines.map((line: any, idx: number) => (
-                          <tr key={idx} className="hover:bg-gray-50">
-                            <td className="px-4 py-2">{line.productName || line.product_name || 'N/A'}</td>
-                            <td className="px-4 py-2 text-right">
-                              {parseFloat(line.quantityOrdered || line.quantity_ordered || '0').toFixed(2)}
-                            </td>
-                            <td className="px-4 py-2 text-right">
-                              ₹{parseFloat(line.unitPrice || line.unit_price || '0').toLocaleString('en-IN')}
-                            </td>
-                            <td className="px-4 py-2 text-right font-semibold">
-                              ₹
-                              {(
-                                parseFloat(line.quantityOrdered || line.quantity_ordered || '0') *
-                                parseFloat(line.unitPrice || line.unit_price || '0')
-                              ).toLocaleString('en-IN')}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-end mt-6">
-                <Button onClick={() => setShowPOModal(false)}>Close</Button>
-              </div>
-            </div>
-          </div>,
-          document.body
+                      <ChevronDown
+                        className={`w-5 h-5 text-gray-600 transition-transform ${
+                          expandedRows.has(rfq.id) ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
-
-      {/* Invoice Modal */}
-      {showInvoiceModal &&
-        selectedInvoice &&
-        typeof window !== 'undefined' &&
-        createPortal(
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold">Invoice Details</h2>
-                  <p className="text-gray-500 mt-1">Invoice #{selectedInvoice.invoiceNumber}</p>
-                </div>
-                <button
-                  onClick={() => setShowInvoiceModal(false)}
-                  className="text-gray-500 hover:text-gray-700 text-2xl"
-                >
-                  ×
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-6 mb-6">
-                <div>
-                  <div className="text-sm text-gray-500">Invoice Date</div>
-                  <div className="font-medium">
-                    {new Date(selectedInvoice.invoiceDate).toLocaleDateString()}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-500">Due Date</div>
-                  <div className="font-medium">
-                    {new Date(selectedInvoice.dueDate).toLocaleDateString()}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-500">Status</div>
-                  <span
-                    className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
-                      selectedInvoice.status
-                    )}`}
-                  >
-                    {selectedInvoice.status.toUpperCase()}
-                  </span>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-500">Total Amount</div>
-                  <div className="text-2xl font-bold text-blue-600">
-                    ₹{parseFloat(selectedInvoice.totalAmount).toLocaleString('en-IN')}
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gray-50 p-4 rounded">
-                <h3 className="font-semibold mb-2">Payment Information</h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Status</span>
-                    <span className="font-medium">
-                      {selectedInvoice.status === 'paid' ? '✅ Paid' : '⏳ Pending Payment'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Days Until Due</span>
-                    <span className="font-medium">
-                      {Math.ceil(
-                        (new Date(selectedInvoice.dueDate).getTime() - new Date().getTime()) /
-                          (1000 * 60 * 60 * 24)
-                      )}{' '}
-                      days
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end mt-6">
-                <Button onClick={() => setShowInvoiceModal(false)}>Close</Button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
-
-      {/* RFQ Modal */}
-      {showRFQModal &&
-        selectedRFQ &&
-        typeof window !== 'undefined' &&
-        createPortal(
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold">Request for Quotation Details</h2>
-                  <p className="text-gray-500 mt-1">RFQ #{selectedRFQ.rfqNumber}</p>
-                </div>
-                <button
-                  onClick={() => setShowRFQModal(false)}
-                  className="text-gray-500 hover:text-gray-700 text-2xl"
-                >
-                  ×
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-6 mb-6">
-                <div>
-                  <div className="text-sm text-gray-500">RFQ Date</div>
-                  <div className="font-medium">{new Date(selectedRFQ.rfqDate).toLocaleDateString()}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-500">Deadline</div>
-                  <div className="font-medium">
-                    {selectedRFQ.deadlineDate
-                      ? new Date(selectedRFQ.deadlineDate).toLocaleDateString()
-                      : '—'}
-                  </div>
-                </div>
-                <div className="col-span-2">
-                  <div className="text-sm text-gray-500">Title</div>
-                  <div className="font-medium text-lg">{selectedRFQ.title}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-500">Status</div>
-                  <span
-                    className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
-                      selectedRFQ.status
-                    )}`}
-                  >
-                    {selectedRFQ.status.replace('_', ' ').toUpperCase()}
-                  </span>
-                </div>
-              </div>
-
-              <div className="bg-blue-50 p-4 rounded">
-                <h3 className="font-semibold mb-2">RFQ Progress</h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Status</span>
-                    <span className="font-medium">
-                      {selectedRFQ.status === 'sent'
-                        ? '📤 Sent to Supplier'
-                        : selectedRFQ.status === 'received'
-                        ? '✅ Quotation Received'
-                        : selectedRFQ.status === 'in_progress'
-                        ? '🔄 In Progress'
-                        : selectedRFQ.status === 'closed'
-                        ? '🔒 Closed'
-                        : '📝 Draft'}
-                    </span>
-                  </div>
-                  {selectedRFQ.deadlineDate && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Days Until Deadline</span>
-                      <span className="font-medium">
-                        {Math.ceil(
-                          (new Date(selectedRFQ.deadlineDate).getTime() - new Date().getTime()) /
-                            (1000 * 60 * 60 * 24)
-                        )}{' '}
-                        days
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex justify-end mt-6">
-                <Button onClick={() => setShowRFQModal(false)}>Close</Button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
-
-      {/* Edit Modal */}
-      {showEditModal &&
-        editFormData &&
-        typeof window !== 'undefined' &&
-        createPortal(
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <h2 className="text-2xl font-bold mb-4">Edit Supplier</h2>
-
-              <form onSubmit={handleEditSubmit} className="space-y-4">
-                {/* Basic Information */}
-                <div className="border-b pb-4">
-                  <h3 className="font-semibold mb-3">Basic Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">
-                        Supplier Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={editFormData.name}
-                        onChange={(e) =>
-                          setEditFormData({ ...editFormData, name: e.target.value })
-                        }
-                        className="w-full px-3 py-2 border rounded"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Supplier Code</label>
-                      <input
-                        type="text"
-                        value={editFormData.code}
-                        onChange={(e) =>
-                          setEditFormData({ ...editFormData, code: e.target.value })
-                        }
-                        className="w-full px-3 py-2 border rounded"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Email</label>
-                      <input
-                        type="email"
-                        value={editFormData.email}
-                        onChange={(e) =>
-                          setEditFormData({ ...editFormData, email: e.target.value })
-                        }
-                        className="w-full px-3 py-2 border rounded"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Phone</label>
-                      <input
-                        type="text"
-                        value={editFormData.phone}
-                        onChange={(e) =>
-                          setEditFormData({ ...editFormData, phone: e.target.value })
-                        }
-                        className="w-full px-3 py-2 border rounded"
-                      />
-                    </div>
-                    <div className="col-span-2">
-                      <label className="block text-sm font-medium mb-1">Website</label>
-                      <input
-                        type="text"
-                        value={editFormData.website}
-                        onChange={(e) =>
-                          setEditFormData({ ...editFormData, website: e.target.value })
-                        }
-                        className="w-full px-3 py-2 border rounded"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Address */}
-                <div className="border-b pb-4">
-                  <h3 className="font-semibold mb-3">Address</h3>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Street Address</label>
-                      <textarea
-                        value={editFormData.address}
-                        onChange={(e) =>
-                          setEditFormData({ ...editFormData, address: e.target.value })
-                        }
-                        className="w-full px-3 py-2 border rounded"
-                        rows={2}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-1">City</label>
-                        <input
-                          type="text"
-                          value={editFormData.city}
-                          onChange={(e) =>
-                            setEditFormData({ ...editFormData, city: e.target.value })
-                          }
-                          className="w-full px-3 py-2 border rounded"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-1">State</label>
-                        <input
-                          type="text"
-                          value={editFormData.state}
-                          onChange={(e) =>
-                            setEditFormData({ ...editFormData, state: e.target.value })
-                          }
-                          className="w-full px-3 py-2 border rounded"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Country</label>
-                        <input
-                          type="text"
-                          value={editFormData.country}
-                          onChange={(e) =>
-                            setEditFormData({ ...editFormData, country: e.target.value })
-                          }
-                          className="w-full px-3 py-2 border rounded"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Postal Code</label>
-                        <input
-                          type="text"
-                          value={editFormData.postalCode}
-                          onChange={(e) =>
-                            setEditFormData({ ...editFormData, postalCode: e.target.value })
-                          }
-                          className="w-full px-3 py-2 border rounded"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Financial */}
-                <div className="border-b pb-4">
-                  <h3 className="font-semibold mb-3">Financial Information</h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Tax ID / GST</label>
-                      <input
-                        type="text"
-                        value={editFormData.taxId}
-                        onChange={(e) =>
-                          setEditFormData({ ...editFormData, taxId: e.target.value })
-                        }
-                        className="w-full px-3 py-2 border rounded"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Payment Terms (days)</label>
-                      <input
-                        type="number"
-                        value={editFormData.paymentTerms}
-                        onChange={(e) =>
-                          setEditFormData({
-                            ...editFormData,
-                            paymentTerms: parseInt(e.target.value),
-                          })
-                        }
-                        className="w-full px-3 py-2 border rounded"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Currency</label>
-                      <select
-                        value={editFormData.currencyCode}
-                        onChange={(e) =>
-                          setEditFormData({ ...editFormData, currencyCode: e.target.value })
-                        }
-                        className="w-full px-3 py-2 border rounded"
-                      >
-                        <option value="INR">INR (₹)</option>
-                        <option value="USD">USD ($)</option>
-                        <option value="EUR">EUR (€)</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Status and Notes */}
-                <div>
-                  <div className="mb-3">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={editFormData.isActive}
-                        onChange={(e) =>
-                          setEditFormData({ ...editFormData, isActive: e.target.checked })
-                        }
-                      />
-                      <span className="text-sm font-medium">Active Supplier</span>
-                    </label>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Notes</label>
-                    <textarea
-                      value={editFormData.notes}
-                      onChange={(e) =>
-                        setEditFormData({ ...editFormData, notes: e.target.value })
-                      }
-                      className="w-full px-3 py-2 border rounded"
-                      rows={3}
-                    />
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => setShowEditModal(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit">Save Changes</Button>
-                </div>
-              </form>
-            </div>
-          </div>,
-          document.body
-        )}
+      </div>
     </div>
-  );
-}
+  )}
+
+  {activeTab === 'quotations' && (
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-200">
+        <h3 className="text-base font-semibold text-gray-900">Supplier Quotations</h3>
+        <p className="text-sm text-gray-500">{quotations.length} quotations found</p>
+      </div>
+      <div className="overflow-x-auto">
+        {quotations.length === 0 ? (
+          <div className="text-center py-12 px-4">
+            <div className="text-6xl mb-4">💼</div>
+            <p className="text-gray-500 text-lg mb-2">No quotations submitted</p>
+            <p className="text-gray-400 text-sm">Quotations from this supplier will appear here.</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-gray-50/80">
+                <TableHead className="font-semibold text-gray-700">Submission #</TableHead>
+                <TableHead className="font-semibold text-gray-700">Date</TableHead>
+                <TableHead className="font-semibold text-gray-700">RFQ Reference</TableHead>
+                <TableHead className="font-semibold text-gray-700">Valid Until</TableHead>
+                <TableHead className="font-semibold text-gray-700">Delivery Days</TableHead>
+                <TableHead className="font-semibold text-gray-700">Amount</TableHead>
+                <TableHead className="font-semibold text-gray-700">Status</TableHead>
+                <TableHead className="font-semibold text-gray-700">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {quotations.map((quotation) => (
+                <TableRow key={quotation.id} className="hover:bg-blue-50 transition-colors">
+                  <TableCell className="font-medium text-gray-900">{quotation.submission_number}</TableCell>
+                  <TableCell className="text-sm">{new Date(quotation.submission_date).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    {quotation.rfq_number ? (
+                      <div>
+                        <div className="font-medium text-sm">{quotation.rfq_number}</div>
+                        <div className="text-xs text-gray-500">{quotation.rfq_title}</div>
+                      </div>
+                    ) : (
+                      '—'
+                    )}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {quotation.valid_until
+                      ? new Date(quotation.valid_until).toLocaleDateString()
+                      : '—'}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {quotation.delivery_time_in_days ? `${quotation.delivery_time_in_days} days` : '—'}
+                  </TableCell>
+                  <TableCell className="font-semibold text-gray-900 text-sm">
+                    ₹{parseFloat(quotation.total_amount || '0').toLocaleString('en-IN')}
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getQuotationStatusColor(
+                        quotation.status
+                      )}`}
+                    >
+                      {quotation.status.replace('_', ' ').toUpperCase()}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setSelectedQuotation(quotation);
+                          setShowQuotationModal(true);
+                        }}
+                        className="text-blue-600 hover:text-blue-700 text-xs font-medium"
+                      >
+                        View
+                      </button>
+                      {quotation.quotation_type === 'file_upload' && quotation.file_url && (
+                        <button
+                          onClick={() => {
+                            const link = document.createElement('a');
+                            link.href = quotation.file_url!;
+                            link.download = quotation.file_name || 'quotation-file';
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                          }}
+                          className="text-blue-600 hover:text-blue-700 text-xs font-medium"
+                        >
+                          Download
+                        </button>
+                      )}
+                      {(quotation.status === 'submitted' || quotation.status === 'under_review') && (
+                        <>
+                          <button
+                            onClick={() => handleAcceptQuotation(quotation.id)}
+                            className="text-green-600 hover:text-green-700 text-xs font-medium"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => handleRejectQuotation(quotation.id)}
+                            className="text-red-600 hover:text-red-700 text-xs font-medium"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+    </div>
+  )}
+
+  {activeTab === 'invoices' && (
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-200">
+        <h3 className="text-base font-semibold text-gray-900">Purchase Invoices</h3>
+        <p className="text-sm text-gray-500">{invoices.length} invoices found</p>
+      </div>
+      <div className="overflow-x-auto">
+        {invoices.length === 0 ? (
+          <div className="text-center py-12 px-4">
+            <div className="text-6xl mb-4">🧾</div>
+            <p className="text-gray-500 text-lg mb-2">No invoices found</p>
+            <p className="text-gray-400 text-sm">Invoices from this supplier will appear here.</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-gray-50/80">
+                <TableHead className="font-semibold text-gray-700">Invoice Number</TableHead>
+                <TableHead className="font-semibold text-gray-700">Invoice Date</TableHead>
+                <TableHead className="font-semibold text-gray-700">Due Date</TableHead>
+                <TableHead className="font-semibold text-gray-700">Amount</TableHead>
+                <TableHead className="font-semibold text-gray-700">Status</TableHead>
+                <TableHead className="font-semibold text-gray-700 text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {invoices.map((invoice) => {
+                // Handle both vendor invoices (ERP) and supplier invoices (portal)
+                const invoiceNumber = invoice.invoiceNumber || invoice.invoice_number || '-';
+                const invoiceDate = invoice.invoiceDate || invoice.invoice_date;
+                const dueDate = invoice.dueDate || invoice.due_date;
+                const totalAmount = invoice.totalAmount || invoice.total_amount || '0';
+                const status = invoice.status || invoice.payment_status || 'draft';
+                
+                return (
+                  <TableRow key={invoice.id} className="hover:bg-blue-50 cursor-pointer transition-colors">
+                    <TableCell className="font-medium text-gray-900">{invoiceNumber}</TableCell>
+                    <TableCell className="text-sm">
+                      {invoiceDate ? new Date(invoiceDate).toLocaleDateString() : '-'}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {dueDate ? new Date(dueDate).toLocaleDateString() : '-'}
+                    </TableCell>
+                    <TableCell className="font-semibold text-gray-900 text-sm">
+                      ₹{parseFloat(totalAmount).toLocaleString('en-IN')}
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                          status
+                        )}`}
+                      >
+                        {status.toUpperCase()}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <button
+                        onClick={() => toggleRow(invoice.id)}
+                        className="inline-flex items-center justify-center w-8 h-8 rounded hover:bg-gray-100 transition-colors"
+                      >
+                        <ChevronDown
+                          className={`w-5 h-5 text-gray-600 transition-transform ${
+                            expandedRows.has(invoice.id) ? 'rotate-180' : ''
+                          }`}
+                        />
+                      </button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+    </div>
+  )}
+
+  {activeTab === 'receipts' && (
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-200">
+        <h3 className="text-base font-semibold text-gray-900">Payment Receipts</h3>
+        <p className="text-sm text-gray-500">{receipts.length} receipts found</p>
+      </div>
+      <div className="overflow-x-auto">
+        {receipts.length === 0 ? (
+          <div className="text-center py-12 px-4">
+            <div className="text-6xl mb-4">🧾</div>
+            <p className="text-gray-500 text-lg mb-2">No receipts found</p>
+            <p className="text-gray-400 text-sm">Payment receipts for this supplier will appear here.</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-gray-50/80">
+                <TableHead className="font-semibold text-gray-700">Receipt Number</TableHead>
+                <TableHead className="font-semibold text-gray-700">Receipt Date</TableHead>
+                <TableHead className="font-semibold text-gray-700">Invoice Number</TableHead>
+                <TableHead className="font-semibold text-gray-700">Amount</TableHead>
+                <TableHead className="font-semibold text-gray-700">Payment Method</TableHead>
+                <TableHead className="font-semibold text-gray-700">Status</TableHead>
+                <TableHead className="font-semibold text-gray-700 text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {receipts.map((receipt) => (
+                <TableRow key={receipt.id} className="hover:bg-blue-50 cursor-pointer transition-colors">
+                  <TableCell className="font-medium text-gray-900">{receipt.receipt_number}</TableCell>
+                  <TableCell className="text-sm">
+                    {new Date(receipt.receipt_date).toLocaleDateString('en-IN')}
+                  </TableCell>
+                  <TableCell className="text-sm">{receipt.invoice_number || '-'}</TableCell>
+                  <TableCell className="font-semibold text-gray-900 text-sm">
+                    ₹{parseFloat(receipt.amount || 0).toLocaleString('en-IN')}
+                  </TableCell>
+                  <TableCell className="text-sm">{receipt.payment_method || '-'}</TableCell>
+                  <TableCell>
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        receipt.status === 'downloaded'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-blue-100 text-blue-800'
+                      }`}
+                    >
+                      {receipt.status?.toUpperCase() || 'PENDING'}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <button
+                      onClick={async () => {
+                        try {
+                          const token = getAuthToken();
+                          const response = await fetch(
+                            `/api/supplier-portal/receipts/${receipt.id}/download`,
+                            {
+                              headers: { Authorization: `Bearer ${token}` },
+                            }
+                          );
+
+                          if (response.ok) {
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `receipt-${receipt.receipt_number}.html`;
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            document.body.removeChild(a);
+                            showAlert({
+                              type: 'success',
+                              title: 'Success',
+                              message: 'Receipt downloaded successfully',
+                            });
+                            fetchSupplierDetails();
+                          } else {
+                            showAlert({
+                              type: 'error',
+                              title: 'Error',
+                              message: 'Failed to download receipt',
+                            });
+                          }
+                        } catch (error) {
+                          console.error('Error downloading receipt:', error);
+                          showAlert({
+                            type: 'error',
+                            title: 'Error',
+                            message: 'Failed to download receipt',
+                          });
+                        }
+                      }}
+                      className="text-blue-600 hover:text-blue-700 text-xs font-medium"
+                    >
+                      Download
+                    </button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+    </div>
+  )}
+
+  {/* Edit Supplier Modal */}
+  <EditSupplierModal
+    isOpen={showEditModal}
+    editFormData={editFormData}
+    onClose={() => setShowEditModal(false)}
+    onSubmit={handleEditSubmit}
+    onChange={setEditFormData}
+  />
+
+  {/* Quotation View Modal */}
+  {selectedQuotation && (
+    <QuotationViewModal
+      isOpen={showQuotationModal}
+      quotation={{
+        ...selectedQuotation,
+        supplier_name: supplier?.name || '',
+        supplier_code: supplier?.code || '',
+      }}
+      onClose={() => {
+        setShowQuotationModal(false);
+        setSelectedQuotation(null);
+      }}
+      onAccept={() => handleAcceptQuotation(selectedQuotation.id)}
+      onReject={() => handleRejectQuotation(selectedQuotation.id)}
+      showActions={
+        selectedQuotation.status === 'submitted' || selectedQuotation.status === 'under_review'
+      }
+    />
+  )}
+</div>
+  )}

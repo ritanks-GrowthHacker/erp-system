@@ -8,6 +8,8 @@ import Link from 'next/link';
 
 export default function PurchasingDashboard() {
   const [stats, setStats] = useState({
+    rfqs: { total: 0, pending: 0, quoted: 0 },
+    quotations: { total: 0, pending: 0, accepted: 0, rejected: 0 },
     purchaseOrders: { total: 0, draft: 0, confirmed: 0, received: 0 },
     invoices: { total: 0, pending: 0, approved: 0, paid: 0, overdue: 0 },
     receipts: { total: 0, received: 0, accepted: 0 },
@@ -24,66 +26,14 @@ export default function PurchasingDashboard() {
       setLoading(true);
       const token = getAuthToken();
       
-      // Fetch all data in parallel
-      const [ordersRes, invoicesRes, receiptsRes, suppliersRes] = await Promise.all([
-        fetch('/api/erp/purchasing/orders', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/erp/purchasing/invoices', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/erp/purchasing/goods-receipts', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/erp/purchasing/suppliers', { headers: { Authorization: `Bearer ${token}` } }),
-      ]);
+      // Fetch stats from unified endpoint
+      const response = await fetch('/api/erp/purchasing/stats', { 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
 
-      if (ordersRes.ok) {
-        const data = await ordersRes.json();
-        const orders = data.purchaseOrders || [];
-        setStats(prev => ({
-          ...prev,
-          purchaseOrders: {
-            total: orders.length,
-            draft: orders.filter((o: any) => o.status === 'draft').length,
-            confirmed: orders.filter((o: any) => o.status === 'confirmed').length,
-            received: orders.filter((o: any) => o.status === 'received').length,
-          }
-        }));
-      }
-
-      if (invoicesRes.ok) {
-        const data = await invoicesRes.json();
-        const invoices = data.invoices || [];
-        setStats(prev => ({
-          ...prev,
-          invoices: {
-            total: invoices.length,
-            pending: invoices.filter((i: any) => i.status === 'pending').length,
-            approved: invoices.filter((i: any) => i.status === 'approved').length,
-            paid: invoices.filter((i: any) => i.status === 'paid').length,
-            overdue: invoices.filter((i: any) => i.status === 'overdue').length,
-          }
-        }));
-      }
-
-      if (receiptsRes.ok) {
-        const data = await receiptsRes.json();
-        const receipts = data.receipts || [];
-        setStats(prev => ({
-          ...prev,
-          receipts: {
-            total: receipts.length,
-            received: receipts.filter((r: any) => r.status === 'received').length,
-            accepted: receipts.filter((r: any) => r.status === 'accepted').length,
-          }
-        }));
-      }
-
-      if (suppliersRes.ok) {
-        const data = await suppliersRes.json();
-        const suppliers = data.suppliers || [];
-        setStats(prev => ({
-          ...prev,
-          suppliers: {
-            total: suppliers.length,
-            active: suppliers.filter((s: any) => s.isActive).length,
-          }
-        }));
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data);
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -112,8 +62,8 @@ export default function PurchasingDashboard() {
                 </svg>
               </div>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{loading ? '...' : 0}</p>
-            <p className="text-xs text-gray-500 mt-1">Request quotes</p>
+            <p className="text-2xl font-bold text-gray-900">{loading ? '...' : stats.rfqs.total}</p>
+            <p className="text-xs text-gray-500 mt-1">{stats.rfqs.pending} pending</p>
           </div>
         </Link>
 
@@ -127,8 +77,8 @@ export default function PurchasingDashboard() {
                 </svg>
               </div>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{loading ? '...' : 0}</p>
-            <p className="text-xs text-gray-500 mt-1">Compare quotes</p>
+            <p className="text-2xl font-bold text-gray-900">{loading ? '...' : stats.quotations.total}</p>
+            <p className="text-xs text-gray-500 mt-1">{stats.quotations.accepted} accepted</p>
           </div>
         </Link>
 

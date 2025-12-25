@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { getAuthToken } from '@/lib/utils/token';
 import { inputFieldDesign, modalLabels } from '@/components/modal/modalInputDesigns';
-import { X, Plus, Trash2, Package, TrendingUp } from 'lucide-react';
+import { X, Plus, Trash2, Package, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
+import { useAlert } from '@/components/common/CustomAlert';
 import React from 'react';
 
 interface SalesOrder {
@@ -49,6 +50,7 @@ interface OrderLine {
 }
 
 export default function SalesOrdersPage() {
+  const { showAlert, showConfirm } = useAlert();
   const [orders, setOrders] = useState<SalesOrder[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -245,7 +247,7 @@ export default function SalesOrdersPage() {
     e.preventDefault();
 
     if (orderLines.length === 0) {
-      alert('Please add at least one product to the order');
+      showAlert({ type: 'error', title: 'Error', message: 'Please add at least one product to the order' });
       return;
     }
 
@@ -264,49 +266,54 @@ export default function SalesOrdersPage() {
       });
 
       if (response.ok) {
-        alert('Sales order created successfully!');
+        showAlert({ type: 'success', title: 'Success', message: 'Sales order created successfully!' });
         resetForm();
         fetchOrders();
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to create sales order');
+        showAlert({ type: 'error', title: 'Error', message: error.error || 'Failed to create sales order' });
       }
     } catch (error) {
       console.error('Error creating sales order:', error);
-      alert('Failed to create sales order');
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to create sales order' });
     }
   };
 
   const handleDeliver = async (orderId: string) => {
-    if (!confirm('Mark this order as delivered? This will update inventory and sales history.')) {
-      return;
-    }
-
     const token = getAuthToken();
-    try {
-      const response = await fetch(`/api/erp/sales/orders/${orderId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          status: 'delivered',
-          deliveryDate: new Date().toISOString(),
-        }),
-      });
 
-      if (response.ok) {
-        alert('Order marked as delivered! Sales history updated.');
-        fetchOrders();
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Failed to update order');
+    showConfirm({
+      title: 'Mark as Delivered',
+      message: 'Mark this order as delivered? This will update inventory and sales history.',
+      confirmText: 'Mark as Delivered',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/erp/sales/orders/${orderId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              status: 'delivered',
+              deliveryDate: new Date().toISOString(),
+            }),
+          });
+
+          if (response.ok) {
+            showAlert({ type: 'success', title: 'Success', message: 'Order marked as delivered! Sales history updated.' });
+            fetchOrders();
+          } else {
+            const error = await response.json();
+            showAlert({ type: 'error', title: 'Error', message: error.error || 'Failed to update order' });
+          }
+        } catch (error) {
+          console.error('Error updating order:', error);
+          showAlert({ type: 'error', title: 'Error', message: 'Failed to update order' });
+        }
       }
-    } catch (error) {
-      console.error('Error updating order:', error);
-      alert('Failed to update order');
-    }
+    });
   };
 
   const resetForm = () => {
@@ -458,7 +465,7 @@ export default function SalesOrdersPage() {
                     <tr className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => toggleExpand(order.id)}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
                         <div className="flex items-center gap-2">
-                          <span>{expandedRow === order.id ? '▼' : '▶'}</span>
+                          {expandedRow === order.id ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
                           {order.soNumber}
                         </div>
                       </td>

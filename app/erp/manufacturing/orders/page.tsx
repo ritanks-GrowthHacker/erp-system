@@ -4,6 +4,7 @@ import { Edit, Eye, Trash2, Play, CheckCircle, ChevronDown, ChevronUp, Plus } fr
 import MOFormModal from '@/components/manufacturing/MOFormModal';
 import MOViewModal from '@/components/manufacturing/MOViewModal';
 import { getAuthToken } from '@/lib/utils/token';
+import { useAlert } from '@/components/common/CustomAlert';
 
 interface ManufacturingOrder {
   id: string;
@@ -25,6 +26,7 @@ interface ManufacturingOrder {
 }
 
 export default function ManufacturingOrdersPage() {
+  const { showAlert, showConfirm } = useAlert();
   const [orders, setOrders] = useState<ManufacturingOrder[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [boms, setBoms] = useState<any[]>([]);
@@ -196,25 +198,33 @@ export default function ManufacturingOrdersPage() {
   };
 
   const handleDelete = async (orderId: string) => {
-    if (!confirm('Are you sure you want to delete this manufacturing order?')) return;
-
     const token = getAuthToken();
-    try {
-      const res = await fetch(`/api/erp/manufacturing/orders/${orderId}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+    if (!token) return;
 
-      if (!res.ok) throw new Error('Failed to delete order');
+    showConfirm({
+      title: 'Delete Manufacturing Order',
+      message: 'Are you sure you want to delete this manufacturing order?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/erp/manufacturing/orders/${orderId}`, {
+            method: 'DELETE',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
 
-      await fetchOrders();
-      alert('Manufacturing order deleted successfully');
-    } catch (error) {
-      console.error('Error deleting order:', error);
-      alert('Failed to delete manufacturing order');
-    }
+          if (!res.ok) throw new Error('Failed to delete order');
+
+          await fetchOrders();
+          showAlert({ type: 'success', title: 'Success', message: 'Manufacturing order deleted successfully' });
+        } catch (error) {
+          console.error('Error deleting order:', error);
+          showAlert({ type: 'error', title: 'Error', message: 'Failed to delete manufacturing order' });
+        }
+      }
+    });
   };
 
   const handleCreateNew = () => {

@@ -24,6 +24,10 @@ export const suppliers = pgTable('suppliers', {
   paymentTerms: integer('payment_terms').default(30),
   currencyCode: varchar('currency_code', { length: 3 }).default('USD'),
   isActive: boolean('is_active').default(true),
+  profileImage: text('profile_image'),
+  otp: varchar('otp', { length: 10 }),
+  otpExpiresAt: timestamp('otp_expires_at', { withTimezone: true }),
+  lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
   notes: text('notes'),
   createdBy: uuid('created_by'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
@@ -172,6 +176,38 @@ export const goodsReceiptLines = pgTable('goods_receipt_lines', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
+// Supplier Quotation Submissions (from Supplier Portal)
+export const supplierQuotationSubmissions = pgTable('supplier_quotation_submissions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  rfqId: uuid('rfq_id').references(() => requestForQuotations.id, { onDelete: 'set null' }),
+  purchaseOrderId: uuid('purchase_order_id').references(() => purchaseOrders.id, { onDelete: 'set null' }),
+  supplierId: uuid('supplier_id').notNull().references(() => suppliers.id, { onDelete: 'cascade' }),
+  submissionNumber: varchar('submission_number', { length: 100 }).notNull(),
+  submissionDate: timestamp('submission_date', { withTimezone: true }).defaultNow(),
+  submissionType: varchar('submission_type', { length: 20 }).default('quotation'), // quotation, revised_quotation
+  quotationType: varchar('quotation_type', { length: 20 }).notNull(), // file_upload, manual_entry
+  // For file uploads
+  fileUrl: text('file_url'),
+  fileName: varchar('file_name', { length: 255 }),
+  fileType: varchar('file_type', { length: 50 }), // pdf, docx, jpg, png, etc.
+  fileSize: integer('file_size'), // in bytes
+  // For manual entry
+  manualQuotationData: jsonb('manual_quotation_data'), // { items: [{product, qty, price, tax}], notes, terms }
+  // Common fields
+  totalAmount: decimal('total_amount', { precision: 15, scale: 2 }),
+  currencyCode: varchar('currency_code', { length: 3 }).default('INR'),
+  validUntil: date('valid_until'),
+  deliveryTimeInDays: integer('delivery_time_in_days'),
+  paymentTerms: text('payment_terms'),
+  notes: text('notes'),
+  status: varchar('status', { length: 50 }).default('submitted'), // submitted, under_review, accepted, rejected
+  reviewedBy: uuid('reviewed_by'),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  reviewNotes: text('review_notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
 // ============================================
 // CUSTOMERS & SALES
 // ============================================
@@ -250,6 +286,81 @@ export const salesOrderLines = pgTable('sales_order_lines', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
+// Sales Quotations
+export const salesQuotations = pgTable('sales_quotations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  erpOrganizationId: uuid('erp_organization_id').notNull().references(() => erpOrganizations.id, { onDelete: 'cascade' }),
+  customerId: uuid('customer_id').notNull().references(() => customers.id, { onDelete: 'restrict' }),
+  quotationNumber: varchar('quotation_number', { length: 100 }).notNull(),
+  quotationDate: date('quotation_date').notNull().defaultNow(),
+  validUntil: date('valid_until'),
+  status: varchar('status', { length: 50 }).default('draft'),
+  currencyCode: varchar('currency_code', { length: 3 }).default('USD'),
+  subtotal: decimal('subtotal', { precision: 15, scale: 2 }).default('0'),
+  taxAmount: decimal('tax_amount', { precision: 15, scale: 2 }).default('0'),
+  totalAmount: decimal('total_amount', { precision: 15, scale: 2 }).default('0'),
+  paymentTerms: integer('payment_terms').default(30),
+  notes: text('notes'),
+  createdBy: uuid('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+export const salesQuotationLines = pgTable('sales_quotation_lines', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  salesQuotationId: uuid('sales_quotation_id').notNull().references(() => salesQuotations.id, { onDelete: 'cascade' }),
+  productId: uuid('product_id').notNull().references(() => products.id, { onDelete: 'restrict' }),
+  productVariantId: uuid('product_variant_id').references(() => productVariants.id, { onDelete: 'restrict' }),
+  description: text('description'),
+  quantity: decimal('quantity', { precision: 15, scale: 2 }).notNull(),
+  uomId: uuid('uom_id').references(() => unitsOfMeasure.id),
+  unitPrice: decimal('unit_price', { precision: 15, scale: 2 }).notNull(),
+  taxRate: decimal('tax_rate', { precision: 5, scale: 2 }).default('0'),
+  discount: decimal('discount', { precision: 5, scale: 2 }).default('0'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+// Sales Invoices
+export const salesInvoices = pgTable('sales_invoices', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  erpOrganizationId: uuid('erp_organization_id').notNull().references(() => erpOrganizations.id, { onDelete: 'cascade' }),
+  customerId: uuid('customer_id').notNull().references(() => customers.id, { onDelete: 'restrict' }),
+  salesOrderId: uuid('sales_order_id').references(() => salesOrders.id, { onDelete: 'set null' }),
+  invoiceNumber: varchar('invoice_number', { length: 100 }).notNull(),
+  invoiceDate: date('invoice_date').notNull().defaultNow(),
+  dueDate: date('due_date'),
+  status: varchar('status', { length: 50 }).default('draft'),
+  currencyCode: varchar('currency_code', { length: 3 }).default('USD'),
+  subtotal: decimal('subtotal', { precision: 15, scale: 2 }).default('0'),
+  taxAmount: decimal('tax_amount', { precision: 15, scale: 2 }).default('0'),
+  totalAmount: decimal('total_amount', { precision: 15, scale: 2 }).default('0'),
+  paidAmount: decimal('paid_amount', { precision: 15, scale: 2 }).default('0'),
+  balanceAmount: decimal('balance_amount', { precision: 15, scale: 2 }).default('0'),
+  paymentTerms: integer('payment_terms').default(30),
+  notes: text('notes'),
+  createdBy: uuid('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+export const salesInvoiceLines = pgTable('sales_invoice_lines', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  salesInvoiceId: uuid('sales_invoice_id').notNull().references(() => salesInvoices.id, { onDelete: 'cascade' }),
+  productId: uuid('product_id').notNull().references(() => products.id, { onDelete: 'restrict' }),
+  productVariantId: uuid('product_variant_id').references(() => productVariants.id, { onDelete: 'restrict' }),
+  description: text('description'),
+  quantity: decimal('quantity', { precision: 15, scale: 2 }).notNull(),
+  uomId: uuid('uom_id').references(() => unitsOfMeasure.id),
+  unitPrice: decimal('unit_price', { precision: 15, scale: 2 }).notNull(),
+  taxRate: decimal('tax_rate', { precision: 5, scale: 2 }).default('0'),
+  discount: decimal('discount', { precision: 5, scale: 2 }).default('0'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
 // ============================================
 // MANUFACTURING (Basic)
 // ============================================
@@ -309,6 +420,7 @@ export const suppliersRelations = relations(suppliers, ({ one, many }) => ({
   }),
   contacts: many(supplierContacts),
   purchaseOrders: many(purchaseOrders),
+  quotationSubmissions: many(supplierQuotationSubmissions),
 }));
 
 export const supplierContactsRelations = relations(supplierContacts, ({ one }) => ({
@@ -325,6 +437,8 @@ export const customersRelations = relations(customers, ({ one, many }) => ({
   }),
   contacts: many(customerContacts),
   salesOrders: many(salesOrders),
+  salesQuotations: many(salesQuotations),
+  salesInvoices: many(salesInvoices),
 }));
 
 export const customerContactsRelations = relations(customerContacts, ({ one }) => ({
@@ -436,6 +550,72 @@ export const salesOrderLinesRelations = relations(salesOrderLines, ({ one }) => 
   }),
   uom: one(unitsOfMeasure, {
     fields: [salesOrderLines.uomId],
+    references: [unitsOfMeasure.id],
+  }),
+}));
+
+export const salesQuotationsRelations = relations(salesQuotations, ({ one, many }) => ({
+  organization: one(erpOrganizations, {
+    fields: [salesQuotations.erpOrganizationId],
+    references: [erpOrganizations.id],
+  }),
+  customer: one(customers, {
+    fields: [salesQuotations.customerId],
+    references: [customers.id],
+  }),
+  lines: many(salesQuotationLines),
+}));
+
+export const salesQuotationLinesRelations = relations(salesQuotationLines, ({ one }) => ({
+  salesQuotation: one(salesQuotations, {
+    fields: [salesQuotationLines.salesQuotationId],
+    references: [salesQuotations.id],
+  }),
+  product: one(products, {
+    fields: [salesQuotationLines.productId],
+    references: [products.id],
+  }),
+  productVariant: one(productVariants, {
+    fields: [salesQuotationLines.productVariantId],
+    references: [productVariants.id],
+  }),
+  uom: one(unitsOfMeasure, {
+    fields: [salesQuotationLines.uomId],
+    references: [unitsOfMeasure.id],
+  }),
+}));
+
+export const salesInvoicesRelations = relations(salesInvoices, ({ one, many }) => ({
+  organization: one(erpOrganizations, {
+    fields: [salesInvoices.erpOrganizationId],
+    references: [erpOrganizations.id],
+  }),
+  customer: one(customers, {
+    fields: [salesInvoices.customerId],
+    references: [customers.id],
+  }),
+  salesOrder: one(salesOrders, {
+    fields: [salesInvoices.salesOrderId],
+    references: [salesOrders.id],
+  }),
+  lines: many(salesInvoiceLines),
+}));
+
+export const salesInvoiceLinesRelations = relations(salesInvoiceLines, ({ one }) => ({
+  salesInvoice: one(salesInvoices, {
+    fields: [salesInvoiceLines.salesInvoiceId],
+    references: [salesInvoices.id],
+  }),
+  product: one(products, {
+    fields: [salesInvoiceLines.productId],
+    references: [products.id],
+  }),
+  productVariant: one(productVariants, {
+    fields: [salesInvoiceLines.productVariantId],
+    references: [productVariants.id],
+  }),
+  uom: one(unitsOfMeasure, {
+    fields: [salesInvoiceLines.uomId],
     references: [unitsOfMeasure.id],
   }),
 }));
@@ -636,3 +816,17 @@ export const quotationLinesRelations = relations(quotationLines, ({ one }) => ({
   }),
 }));
 
+export const supplierQuotationSubmissionsRelations = relations(supplierQuotationSubmissions, ({ one }) => ({
+  supplier: one(suppliers, {
+    fields: [supplierQuotationSubmissions.supplierId],
+    references: [suppliers.id],
+  }),
+  rfq: one(requestForQuotations, {
+    fields: [supplierQuotationSubmissions.rfqId],
+    references: [requestForQuotations.id],
+  }),
+  purchaseOrder: one(purchaseOrders, {
+    fields: [supplierQuotationSubmissions.purchaseOrderId],
+    references: [purchaseOrders.id],
+  }),
+}));

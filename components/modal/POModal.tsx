@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getAuthToken } from '@/lib/utils/token';
 import { RefreshCw, Plus, Trash2 } from 'lucide-react';
+import { useAlert } from '@/components/common/CustomAlert';
 
 interface Product {
   id: string;
@@ -11,6 +12,12 @@ interface Product {
 }
 
 interface Supplier {
+  id: string;
+  name: string;
+  code: string;
+}
+
+interface Warehouse {
   id: string;
   name: string;
   code: string;
@@ -32,9 +39,11 @@ interface POModalProps {
 }
 
 export default function POModal({ isOpen, onClose, onSuccess }: POModalProps) {
+  const { showAlert } = useAlert();
   const [searchTerm, setSearchTerm] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -45,6 +54,7 @@ export default function POModal({ isOpen, onClose, onSuccess }: POModalProps) {
   // Form fields
   const [poNumber, setPoNumber] = useState('');
   const [supplierId, setSupplierId] = useState('');
+  const [warehouseId, setWarehouseId] = useState('');
   const [orderDate, setOrderDate] = useState('');
   const [expectedDelivery, setExpectedDelivery] = useState('');
   const [paymentTerms, setPaymentTerms] = useState('net30');
@@ -60,6 +70,7 @@ export default function POModal({ isOpen, onClose, onSuccess }: POModalProps) {
     if (isOpen) {
       generatePONumber();
       fetchSuppliers();
+      fetchWarehouses();
       setOrderDate(new Date().toISOString().split('T')[0]);
     }
   }, [isOpen]);
@@ -113,6 +124,23 @@ export default function POModal({ isOpen, onClose, onSuccess }: POModalProps) {
     }
   };
 
+  const fetchWarehouses = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      const res = await fetch('/api/erp/inventory/warehouses', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setWarehouses(data.warehouses || []);
+      }
+    } catch (error) {
+      console.error('Error fetching warehouses:', error);
+    }
+  };
+
   const searchProducts = async (query: string) => {
     const token = getAuthToken();
     if (!token) return;
@@ -152,7 +180,7 @@ export default function POModal({ isOpen, onClose, onSuccess }: POModalProps) {
 
   const handleAddItem = () => {
     if (!tempProduct || !tempQuantity || !tempUnitPrice) {
-      alert('Please select product, quantity, and unit price');
+      showAlert({ type: 'warning', message: 'Please select product, quantity, and unit price' });
       return;
     }
 
@@ -180,18 +208,23 @@ export default function POModal({ isOpen, onClose, onSuccess }: POModalProps) {
     e.preventDefault();
     
     if (!supplierId) {
-      alert('Please select a supplier');
+      showAlert({ type: 'error', message: 'Please select a supplier' });
+      return;
+    }
+
+    if (!warehouseId) {
+      showAlert({ type: 'error', message: 'Please select a warehouse' });
       return;
     }
 
     if (items.length === 0) {
-      alert('Please add at least one item');
+      showAlert({ type: 'error', message: 'Please add at least one item' });
       return;
     }
 
     const token = getAuthToken();
     if (!token) {
-      alert('No authentication token found');
+      showAlert({ type: 'error', message: 'No authentication token found' });
       return;
     }
 
@@ -205,28 +238,31 @@ export default function POModal({ isOpen, onClose, onSuccess }: POModalProps) {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          poNumber,
           supplierId,
-          orderDate,
-          expectedDelivery,
-          paymentTerms,
+          warehouseId,
+          expectedDeliveryDate: expectedDelivery || null,
           notes,
-          items,
+          lines: items.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            taxRate: '0',
+          })),
         }),
       });
 
       if (response.ok) {
-        alert('Purchase Order created successfully!');
+        showAlert({ type: 'success', title: 'Success!', message: 'Purchase Order created successfully' });
         onSuccess();
         resetForm();
         onClose();
       } else {
         const error = await response.json();
-        alert(`Failed to create PO: ${error.error || 'Unknown error'}`);
+        showAlert({ type: 'error', title: 'Failed to create PO', message: error.error || 'Unknown error' });
       }
     } catch (error) {
       console.error('Error creating PO:', error);
-      alert('Failed to create PO. Please try again.');
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to create PO. Please try again.' });
     } finally {
       setSubmitting(false);
     }
@@ -235,6 +271,7 @@ export default function POModal({ isOpen, onClose, onSuccess }: POModalProps) {
   const resetForm = () => {
     setPoNumber('');
     setSupplierId('');
+    setWarehouseId('');
     setOrderDate('');
     setExpectedDelivery('');
     setPaymentTerms('net30');
@@ -310,7 +347,7 @@ export default function POModal({ isOpen, onClose, onSuccess }: POModalProps) {
           </div>
 
           {/* Supplier and Dates */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">
                 Supplier <span className="text-red-500">*</span>
@@ -330,6 +367,27 @@ export default function POModal({ isOpen, onClose, onSuccess }: POModalProps) {
               </select>
             </div>
 
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Warehouse <span className="text-red-500">*</span>
+              </label>
+              <select
+                required
+                value={warehouseId}
+                onChange={(e) => setWarehouseId(e.target.value)}
+                className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              >
+                <option value="">Select Warehouse</option>
+                {warehouses.map((warehouse) => (
+                  <option key={warehouse.id} value={warehouse.id}>
+                    {warehouse.name} ({warehouse.code})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">
                 Order Date <span className="text-red-500">*</span>

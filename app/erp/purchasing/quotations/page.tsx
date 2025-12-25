@@ -4,37 +4,47 @@ import { useState, useEffect } from 'react';
 import { Input, Textarea } from '@/components/ui/form';
 import { getAuthToken } from '@/lib/utils/token';
 import Link from 'next/link';
+import { useAlert } from '@/components/common/CustomAlert';
+import QuotationViewModal from '@/components/modal/QuotationViewModal';
 
 interface Quotation {
   id: string;
-  quotationNumber: string;
-  quotationDate: string;
-  validUntil: string;
+  submission_number: string;
+  submission_date: string;
+  valid_until: string;
   status: string;
-  totalAmount: string;
-  deliveryTime: number;
-  supplier: {
-    name: string;
-  };
-  rfq?: {
-    rfqNumber: string;
-    title: string;
-  };
+  total_amount: string;
+  delivery_time_in_days: number;
+  supplier_name: string;
+  supplier_code: string;
+  rfq_number: string;
+  rfq_title: string;
+  quotation_type: string;
+  file_url?: string;
+  file_name?: string;
 }
 
 export default function QuotationsPage() {
+  const { showAlert, showConfirm } = useAlert();
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
 
   useEffect(() => {
     fetchQuotations();
   }, []);
 
+  const handleViewQuotation = (quotation: Quotation) => {
+    setSelectedQuotation(quotation);
+    setShowViewModal(true);
+  };
+
   const fetchQuotations = async () => {
     try {
       setLoading(true);
       const token = getAuthToken();
-      const response = await fetch('/api/erp/purchasing/quotations', {
+      const response = await fetch('/api/erp/purchasing/supplier-quotations', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -52,63 +62,84 @@ export default function QuotationsPage() {
   };
 
   const handleAcceptQuotation = async (quotationId: string) => {
-    if (!confirm('Accept this quotation?')) return;
-    
-    try {
-      const token = getAuthToken();
-      const response = await fetch('/api/erp/purchasing/quotations', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          quotationId,
-          status: 'accepted',
-        }),
-      });
+    showConfirm({
+      title: 'Accept Quotation',
+      message: 'Are you sure you want to accept this quotation?',
+      confirmText: 'Accept',
+      confirmVariant: 'primary',
+      onConfirm: async () => {
+        const token = getAuthToken();
+        if (!token) return;
 
-      if (response.ok) {
-        alert('Quotation accepted successfully!');
-        fetchQuotations();
-      } else {
-        const data = await response.json();
-        alert(`Error: ${data.error}`);
-      }
-    } catch (error) {
-      console.error('Error accepting quotation:', error);
-      alert('Failed to accept quotation');
-    }
+        try {
+          const response = await fetch('/api/erp/purchasing/supplier-quotations', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              quotationId,
+              status: 'accepted',
+            }),
+          });
+
+          if (response.ok) {
+            showAlert({ type: 'success', title: 'Success', message: 'Quotation accepted successfully!' });
+            setShowViewModal(false);
+            setSelectedQuotation(null);
+            fetchQuotations();
+          } else {
+            const data = await response.json();
+            showAlert({ type: 'error', title: 'Error', message: data.error });
+          }
+        } catch (error) {
+          console.error('Error accepting quotation:', error);
+          showAlert({ type: 'error', title: 'Error', message: 'Failed to accept quotation' });
+        }
+      },
+    });
   };
 
   const handleRejectQuotation = async (quotationId: string) => {
-    if (!confirm('Reject this quotation?')) return;
-    
-    try {
-      const token = getAuthToken();
-      const response = await fetch('/api/erp/purchasing/quotations', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          quotationId,
-          status: 'rejected',
-        }),
-      });
+    showConfirm({
+      title: 'Reject Quotation',
+      message: 'Are you sure you want to reject this quotation? This will notify the supplier.',
+      confirmText: 'Reject',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        const token = getAuthToken();
+        if (!token) return;
 
-      if (response.ok) {
-        alert('Quotation rejected');
-        fetchQuotations();
-      } else {
-        const data = await response.json();
-        alert(`Error: ${data.error}`);
-      }
-    } catch (error) {
-      console.error('Error rejecting quotation:', error);
-      alert('Failed to reject quotation');
-    }
+        try {
+          const response = await fetch('/api/erp/purchasing/supplier-quotations', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              quotationId,
+              status: 'rejected',
+              rejectionNotes: 'Rejected by customer',
+            }),
+          });
+
+          if (response.ok) {
+            showAlert({ type: 'success', title: 'Success', message: 'Quotation rejected' });
+            setShowViewModal(false);
+            setSelectedQuotation(null);
+            fetchQuotations();
+          } else {
+            const data = await response.json();
+            showAlert({ type: 'error', title: 'Error', message: data.error });
+          }
+        } catch (error) {
+          console.error('Error rejecting quotation:', error);
+          showAlert({ type: 'error', title: 'Error', message: 'Failed to reject quotation' });
+        }
+      },
+    });
   };
 
   const getStatusColor = (status: string) => {
@@ -205,24 +236,24 @@ export default function QuotationsPage() {
               <tbody className="divide-y divide-gray-200">
                 {quotations.map((quotation) => (
                   <tr key={quotation.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{quotation.quotationNumber}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(quotation.quotationDate).toLocaleDateString()}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{quotation.supplier.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{quotation.submission_number}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(quotation.submission_date).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{quotation.supplier_name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {quotation.rfq ? (
+                      {quotation.rfq_number ? (
                         <div>
-                          <div className="font-medium">{quotation.rfq.rfqNumber}</div>
-                          <div className="text-xs text-gray-500">{quotation.rfq.title}</div>
+                          <div className="font-medium">{quotation.rfq_number}</div>
+                          <div className="text-xs text-gray-500">{quotation.rfq_title}</div>
                         </div>
                       ) : (
                         '-'
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {quotation.validUntil ? new Date(quotation.validUntil).toLocaleDateString() : '-'}
+                      {quotation.valid_until ? new Date(quotation.valid_until).toLocaleDateString() : '-'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">₹{parseFloat(quotation.totalAmount).toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{quotation.deliveryTime ? `${quotation.deliveryTime} days` : '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">₹{parseFloat(quotation.total_amount || '0').toLocaleString('en-IN')}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{quotation.delivery_time_in_days ? `${quotation.delivery_time_in_days} days` : '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(quotation.status)}`}>
                         {quotation.status.replace('_', ' ').toUpperCase()}
@@ -230,7 +261,12 @@ export default function QuotationsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex gap-2">
-                        <button className="text-blue-600 hover:text-blue-800 font-medium">View</button>
+                        <button 
+                          onClick={() => handleViewQuotation(quotation)}
+                          className="text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          View
+                        </button>
                         {quotation.status === 'submitted' || quotation.status === 'under_review' ? (
                           <>
                             <button 
@@ -270,20 +306,20 @@ export default function QuotationsPage() {
                 .slice(0, 3)
                 .map((quotation) => (
                   <div key={quotation.id} className="border rounded-lg p-4">
-                    <div className="font-semibold text-lg mb-2">{quotation.supplier.name}</div>
+                    <div className="font-semibold text-lg mb-2">{quotation.supplier_name}</div>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Total:</span>
-                        <span className="font-semibold">₹{parseFloat(quotation.totalAmount).toFixed(2)}</span>
+                        <span className="font-semibold">₹{parseFloat(quotation.total_amount || '0').toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Delivery:</span>
-                        <span>{quotation.deliveryTime || '-'} days</span>
+                        <span>{quotation.delivery_time_in_days || '-'} days</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Valid Until:</span>
                         <span>
-                          {quotation.validUntil ? new Date(quotation.validUntil).toLocaleDateString() : '-'}
+                          {quotation.valid_until ? new Date(quotation.valid_until).toLocaleDateString() : '-'}
                         </span>
                       </div>
                     </div>
@@ -295,6 +331,7 @@ export default function QuotationsPage() {
                         Accept
                       </button>
                       <button 
+                        onClick={() => handleViewQuotation(quotation)}
                         className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors text-sm"
                       >
                         Details
@@ -305,6 +342,23 @@ export default function QuotationsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* View Quotation Modal */}
+      {selectedQuotation && (
+        <QuotationViewModal
+          isOpen={showViewModal}
+          quotation={selectedQuotation}
+          onClose={() => {
+            setShowViewModal(false);
+            setSelectedQuotation(null);
+          }}
+          onAccept={() => handleAcceptQuotation(selectedQuotation.id)}
+          onReject={() => handleRejectQuotation(selectedQuotation.id)}
+          showActions={
+            selectedQuotation.status === 'submitted' || selectedQuotation.status === 'under_review'
+          }
+        />
       )}
     </div>
   );

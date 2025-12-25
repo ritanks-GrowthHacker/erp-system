@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Edit, Trash2, Clock, ArrowRight, Plus, ChevronDown, ChevronUp, Eye } from 'lucide-react';
 import { getAuthToken } from '@/lib/utils/token';
+import { useAlert } from '@/components/common/CustomAlert';
 
 interface Routing {
   id: string;
@@ -34,6 +35,7 @@ interface RoutingDetails {
 }
 
 export default function RoutingPage() {
+  const { showAlert, showConfirm } = useAlert();
   const [routings, setRoutings] = useState<Routing[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
@@ -89,22 +91,30 @@ export default function RoutingPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this routing?')) return;
-    
     const token = getAuthToken();
-    try {
-      const res = await fetch(`/api/erp/manufacturing/routing/${id}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!res.ok) throw new Error('Failed to delete routing');
-      await fetchRoutings();
-    } catch (error) {
-      console.error('Error deleting routing:', error);
-      alert('Failed to delete routing');
-    }
+    if (!token) return;
+
+    showConfirm({
+      title: 'Delete Routing',
+      message: 'Are you sure you want to delete this routing?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/erp/manufacturing/routing/${id}`, {
+            method: 'DELETE',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          if (!res.ok) throw new Error('Failed to delete routing');
+          await fetchRoutings();
+        } catch (error) {
+          console.error('Error deleting routing:', error);
+          alert('Failed to delete routing');
+        }
+      },
+    });
   };
 
   const calculateTotalTime = (operations: any[]) => {

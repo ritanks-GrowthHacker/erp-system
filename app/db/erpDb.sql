@@ -13,7 +13,7 @@ CREATE TABLE erp_organizations (
   erp_enabled BOOLEAN DEFAULT true,
   settings JSONB DEFAULT '{}',
   fiscal_year_start INTEGER DEFAULT 1, -- Month (1-12)
-  currency_code VARCHAR(3) DEFAULT 'USD',
+  currency_code VARCHAR(3) DEFAULT 'INR',
   timezone VARCHAR(50) DEFAULT 'UTC',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -290,7 +290,7 @@ CREATE TABLE suppliers (
   postal_code VARCHAR(20),
   tax_id VARCHAR(100),
   payment_terms INTEGER DEFAULT 30, -- Days
-  currency_code VARCHAR(3) DEFAULT 'USD',
+  currency_code VARCHAR(3) DEFAULT 'INR',
   is_active BOOLEAN DEFAULT true,
   notes TEXT,
   created_by UUID, -- References users(id) from mainDb
@@ -321,7 +321,7 @@ CREATE TABLE purchase_orders (
   po_date DATE NOT NULL DEFAULT CURRENT_DATE,
   expected_delivery_date DATE,
   status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'sent', 'confirmed', 'partially_received', 'received', 'cancelled')),
-  currency_code VARCHAR(3) DEFAULT 'USD',
+  currency_code VARCHAR(3) DEFAULT 'INR',
   subtotal DECIMAL(15,2) DEFAULT 0,
   tax_amount DECIMAL(15,2) DEFAULT 0,
   total_amount DECIMAL(15,2) DEFAULT 0,
@@ -374,7 +374,7 @@ CREATE TABLE customers (
   postal_code VARCHAR(20),
   tax_id VARCHAR(100),
   payment_terms INTEGER DEFAULT 30,
-  currency_code VARCHAR(3) DEFAULT 'USD',
+  currency_code VARCHAR(3) DEFAULT 'INR',
   credit_limit DECIMAL(15,2) DEFAULT 0,
   is_active BOOLEAN DEFAULT true,
   notes TEXT,
@@ -406,7 +406,7 @@ CREATE TABLE sales_orders (
   so_date DATE NOT NULL DEFAULT CURRENT_DATE,
   expected_delivery_date DATE,
   status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'confirmed', 'in_progress', 'delivered', 'cancelled')),
-  currency_code VARCHAR(3) DEFAULT 'USD',
+  currency_code VARCHAR(3) DEFAULT 'INR',
   subtotal DECIMAL(15,2) DEFAULT 0,
   tax_amount DECIMAL(15,2) DEFAULT 0,
   total_amount DECIMAL(15,2) DEFAULT 0,

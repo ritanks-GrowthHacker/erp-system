@@ -224,7 +224,7 @@ export default function AdvancedAnalyticsPage() {
   }
 
   return (
-    <div className="space-y-6 pb-6">{/* Removed top padding since layout handles it */}
+    <div className="space-y-6 pb-6 p-6">{/* Removed top padding since layout handles it */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Advanced Analytics</h1>
         <p className="text-sm text-gray-500 mt-1">Real-time insights and performance metrics</p>

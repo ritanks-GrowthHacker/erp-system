@@ -47,11 +47,11 @@ export async function GET(req: NextRequest) {
         FROM purchase_orders
         WHERE erp_organization_id = ${user.erpOrganizationId}
         ${supplierId ? sql`AND supplier_id = ${supplierId}` : sql``}
-        ${startDate ? sql`AND po_date >= ${startDate}` : sql``}
-        ${endDate ? sql`AND po_date <= ${endDate}` : sql``}
+        ${startDate && endDate ? sql`AND po_date >= CAST(${startDate} AS DATE) AND po_date <= CAST(${endDate} AS DATE)` : sql``}
       `);
     } catch (e: any) {
       console.error('Error in poSummary:', e.message);
+      console.error('Full error:', e);
       poSummary = [];
     }
 
@@ -67,11 +67,11 @@ export async function GET(req: NextRequest) {
           COUNT(CASE WHEN status = 'closed' THEN 1 END) as closed_count
         FROM request_for_quotations
         WHERE erp_organization_id = ${user.erpOrganizationId}
-        ${startDate ? sql`AND rfq_date >= ${startDate}` : sql``}
-        ${endDate ? sql`AND rfq_date <= ${endDate}` : sql``}
+        ${startDate && endDate ? sql`AND rfq_date >= CAST(${startDate} AS DATE) AND rfq_date <= CAST(${endDate} AS DATE)` : sql``}
       `);
     } catch (e: any) {
       console.error('Error in rfqSummary:', e.message);
+      console.error('Full error:', e);
       rfqSummary = [];
     }
 
@@ -92,14 +92,14 @@ export async function GET(req: NextRequest) {
         FROM suppliers s
         LEFT JOIN purchase_orders po ON s.id = po.supplier_id
         WHERE s.erp_organization_id = ${user.erpOrganizationId}
-        ${startDate ? sql`AND po.po_date >= ${startDate}` : sql``}
-        ${endDate ? sql`AND po.po_date <= ${endDate}` : sql``}
+        ${startDate && endDate ? sql`AND po.po_date >= CAST(${startDate} AS DATE) AND po.po_date <= CAST(${endDate} AS DATE)` : sql``}
         GROUP BY s.id, s.name, s.code
         ORDER BY total_purchase_value DESC
         LIMIT 10
       `);
     } catch (e: any) {
       console.error('Error in topSuppliers:', e.message);
+      console.error('Full error:', e);
       topSuppliers = [];
     }
 
@@ -133,36 +133,43 @@ export async function GET(req: NextRequest) {
         LEFT JOIN products p ON pol.product_id = p.id
         LEFT JOIN product_categories c ON p.category_id = c.id
         WHERE po.erp_organization_id = ${user.erpOrganizationId}
-        ${startDate ? sql`AND po.po_date >= ${startDate}` : sql``}
-        ${endDate ? sql`AND po.po_date <= ${endDate}` : sql``}
+        ${startDate && endDate ? sql`AND po.po_date >= CAST(${startDate} AS DATE) AND po.po_date <= CAST(${endDate} AS DATE)` : sql``}
         GROUP BY c.name
         ORDER BY total_spending DESC
         LIMIT 10
       `);
     } catch (e: any) {
       console.error('Error in categorySpending:', e.message);
+      console.error('Full error:', e);
       categorySpending = [];
     }
 
     try {
-      // Vendor invoice summary
+      // Vendor invoice summary (including supplier portal invoices)
       invoiceSummary = await erpDb.execute(sql`
         SELECT 
           COUNT(*) as total_invoices,
-          COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
-          COUNT(CASE WHEN status = 'paid' THEN 1 END) as paid_count,
-          COUNT(CASE WHEN status = 'overdue' THEN 1 END) as overdue_count,
+          COUNT(CASE WHEN payment_status = 'pending' OR status = 'pending' THEN 1 END) as pending_count,
+          COUNT(CASE WHEN payment_status = 'paid' OR status = 'paid' THEN 1 END) as paid_count,
+          COUNT(CASE WHEN payment_status = 'overdue' OR status = 'overdue' THEN 1 END) as overdue_count,
           COALESCE(SUM(CAST(total_amount AS DECIMAL)), 0) as total_invoice_value,
-          COALESCE(SUM(CASE WHEN status = 'pending' THEN CAST(total_amount AS DECIMAL) ELSE 0 END), 0) as pending_value,
-          COALESCE(SUM(CASE WHEN status = 'paid' THEN CAST(total_amount AS DECIMAL) ELSE 0 END), 0) as paid_value
-        FROM vendor_invoices
-        WHERE erp_organization_id = ${user.erpOrganizationId}
-        ${supplierId ? sql`AND supplier_id = ${supplierId}` : sql``}
-        ${startDate ? sql`AND invoice_date >= ${startDate}` : sql``}
-        ${endDate ? sql`AND invoice_date <= ${endDate}` : sql``}
+          COALESCE(SUM(CASE WHEN payment_status = 'pending' OR status = 'pending' THEN CAST(total_amount AS DECIMAL) ELSE 0 END), 0) as pending_value,
+          COALESCE(SUM(CASE WHEN payment_status = 'paid' OR status = 'paid' THEN CAST(total_amount AS DECIMAL) ELSE 0 END), 0) as paid_value
+        FROM (
+          SELECT total_amount, status, NULL as payment_status FROM vendor_invoices 
+          WHERE erp_organization_id = ${user.erpOrganizationId}
+          ${supplierId ? sql`AND supplier_id = ${supplierId}` : sql``}
+          ${startDate && endDate ? sql`AND invoice_date >= CAST(${startDate} AS DATE) AND invoice_date <= CAST(${endDate} AS DATE)` : sql``}
+          UNION ALL
+          SELECT total_amount, NULL as status, payment_status FROM supplier_invoices
+          WHERE erp_organization_id = ${user.erpOrganizationId}
+          ${supplierId ? sql`AND supplier_id = ${supplierId}` : sql``}
+          ${startDate && endDate ? sql`AND invoice_date >= CAST(${startDate} AS DATE) AND invoice_date <= CAST(${endDate} AS DATE)` : sql``}
+        ) combined_invoices
       `);
     } catch (e: any) {
       console.error('Error in invoiceSummary:', e.message);
+      console.error('Full error:', e);
       invoiceSummary = [];
     }
 
@@ -179,11 +186,11 @@ export async function GET(req: NextRequest) {
           AND status = 'received'
           AND received_date IS NOT NULL
         ${supplierId ? sql`AND supplier_id = ${supplierId}` : sql``}
-        ${startDate ? sql`AND po_date >= ${startDate}` : sql``}
-        ${endDate ? sql`AND po_date <= ${endDate}` : sql``}
+        ${startDate && endDate ? sql`AND po_date >= CAST(${startDate} AS DATE) AND po_date <= CAST(${endDate} AS DATE)` : sql``}
       `);
     } catch (e: any) {
       console.error('Error in deliveryPerformance:', e.message);
+      console.error('Full error:', e);
       deliveryPerformance = [];
     }
 
@@ -201,14 +208,14 @@ export async function GET(req: NextRequest) {
         JOIN products p ON pol.product_id = p.id
         JOIN purchase_orders po ON pol.purchase_order_id = po.id
         WHERE po.erp_organization_id = ${user.erpOrganizationId}
-        ${startDate ? sql`AND po.po_date >= ${startDate}` : sql``}
-        ${endDate ? sql`AND po.po_date <= ${endDate}` : sql``}
+        ${startDate && endDate ? sql`AND po.po_date >= CAST(${startDate} AS DATE) AND po.po_date <= CAST(${endDate} AS DATE)` : sql``}
         GROUP BY p.id, p.name, p.sku
         ORDER BY total_value DESC
         LIMIT 10
       `);
     } catch (e: any) {
       console.error('Error in topProducts:', e.message);
+      console.error('Full error:', e);
       topProducts = [];
     }
 
@@ -222,17 +229,41 @@ export async function GET(req: NextRequest) {
           po.po_date,
           po.expected_delivery_date,
           po.total_amount,
-          EXTRACT(DAY FROM (CURRENT_DATE - po.expected_delivery_date)) as days_overdue
+          CASE 
+            WHEN po.expected_delivery_date IS NOT NULL 
+            THEN EXTRACT(DAY FROM (CURRENT_DATE - po.expected_delivery_date))
+            ELSE 0
+          END as days_overdue
         FROM purchase_orders po
         JOIN suppliers s ON po.supplier_id = s.id
         WHERE po.erp_organization_id = ${user.erpOrganizationId}
           AND po.status IN ('confirmed', 'partially_received')
-        ORDER BY po.expected_delivery_date ASC
+        ORDER BY po.expected_delivery_date ASC NULLS LAST
         LIMIT 20
       `);
     } catch (e: any) {
       console.error('Error in pendingReceipts:', e.message);
+      console.error('Full error:', e);
       pendingReceipts = [];
+    }
+
+    let receiptSummary: any = [];
+    try {
+      // Goods and Payment Receipts Summary
+      receiptSummary = await erpDb.execute(sql`
+        SELECT 
+          (SELECT COUNT(*) FROM goods_receipts WHERE erp_organization_id = ${user.erpOrganizationId}) as total_po_receipts,
+          (SELECT COUNT(*) FROM supplier_invoice_receipts WHERE erp_organization_id = ${user.erpOrganizationId}) as total_invoice_receipts,
+          (SELECT COUNT(*) FROM goods_receipts WHERE erp_organization_id = ${user.erpOrganizationId} AND status = 'received') as po_received,
+          (SELECT COUNT(*) FROM goods_receipts WHERE erp_organization_id = ${user.erpOrganizationId} AND status = 'accepted') as po_accepted,
+          (SELECT COUNT(*) FROM supplier_invoice_receipts WHERE erp_organization_id = ${user.erpOrganizationId} AND status = 'generated') as invoice_generated,
+          (SELECT COUNT(*) FROM supplier_invoice_receipts WHERE erp_organization_id = ${user.erpOrganizationId} AND status = 'downloaded') as invoice_downloaded,
+          (SELECT COALESCE(SUM(CAST(amount AS DECIMAL)), 0) FROM supplier_invoice_receipts WHERE erp_organization_id = ${user.erpOrganizationId}) as total_receipt_amount
+      `);
+    } catch (e: any) {
+      console.error('Error in receiptSummary:', e.message);
+      console.error('Full error:', e);
+      receiptSummary = [];
     }
 
     return NextResponse.json({
@@ -240,6 +271,7 @@ export async function GET(req: NextRequest) {
       rfqSummary: Array.from(rfqSummary || [])[0] || {},
       invoiceSummary: Array.from(invoiceSummary || [])[0] || {},
       deliveryPerformance: Array.from(deliveryPerformance || [])[0] || {},
+      receiptSummary: Array.from(receiptSummary || [])[0] || {},
       topSuppliers: Array.from(topSuppliers || []),
       purchaseTrends: Array.from(purchaseTrends || []),
       categorySpending: Array.from(categorySpending || []),
