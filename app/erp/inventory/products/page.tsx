@@ -6,6 +6,8 @@ import { ChevronDown } from 'lucide-react';
 import { getAuthToken } from '@/lib/utils/token';
 import Barcode from 'react-barcode';
 import ProductModal from '@/components/modal/ProductModal';
+import ProductViewModal from '@/components/modal/ProductViewModal';
+import ProductLifecycleModal from '@/components/modal/ProductLifecycleModal';
 import { useAlert } from '@/components/common/CustomAlert';
 
 interface Supplier {
@@ -59,6 +61,8 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showLifecycleModal, setShowLifecycleModal] = useState(false);
+  const [lifecycleProductId, setLifecycleProductId] = useState<string>('');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
   const [generatingSKU, setGeneratingSKU] = useState(false);
@@ -886,120 +890,23 @@ export default function ProductsPage() {
       </div>
 
       {/* View Product Modal */}
-      {showViewModal && viewingProduct && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowViewModal(false)}
-        >
-          <div
-            className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="bg-linear-to-r from-blue-600 to-blue-700 p-6 rounded-t-xl">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <h2 className="text-2xl font-bold text-white">{viewingProduct.name}</h2>
-                  <p className="text-blue-100 text-sm font-mono mt-1">{viewingProduct.sku}</p>
-                </div>
-                <button
-                  onClick={() => setShowViewModal(false)}
-                  className="p-2 hover:bg-white/20 rounded-lg transition-colors text-white"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
+      <ProductViewModal
+        isOpen={showViewModal}
+        product={viewingProduct}
+        onClose={() => setShowViewModal(false)}
+        onEdit={handleEdit}
+        onViewLifecycle={(productId) => {
+          setLifecycleProductId(productId);
+          setShowLifecycleModal(true);
+        }}
+      />
 
-            {/* Content */}
-            <div className="p-6 space-y-6">
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
-                  <p className="text-xs font-medium text-gray-600 mb-1">Cost Price</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    ₹{parseFloat(viewingProduct.costPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </p>
-                </div>
-                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
-                  <p className="text-xs font-medium text-gray-600 mb-1">Sale Price</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    ₹{parseFloat(viewingProduct.salePrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </p>
-                </div>
-                <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
-                  <p className="text-xs font-medium text-gray-600 mb-1">Reorder Point</p>
-                  <p className="text-2xl font-bold text-gray-900">{viewingProduct.reorderPoint || '—'}</p>
-                </div>
-                <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
-                  <p className="text-xs font-medium text-gray-600 mb-1">Reorder Qty</p>
-                  <p className="text-2xl font-bold text-gray-900">{viewingProduct.reorderQuantity || '—'}</p>
-                </div>
-              </div>
-
-              {/* Details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Product Type</label>
-                    <div className="mt-2">
-                      <span className="inline-flex px-3 py-1 text-sm font-medium rounded-full bg-gray-100 text-gray-800 capitalize">
-                        {viewingProduct.productType}
-                      </span>
-                    </div>
-                  </div>
-                  {viewingProduct.category && (
-                    <div>
-                      <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Category</label>
-                      <p className="text-lg font-medium text-gray-900 mt-2">{viewingProduct.category.name}</p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Status</label>
-                    <div className="mt-2">
-                      <span
-                        className={`inline-flex px-3 py-1 text-sm font-medium rounded-full ${viewingProduct.isActive
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
-                          }`}
-                      >
-                        {viewingProduct.isActive ? '● Active' : '○ Inactive'}
-                      </span>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Profit Margin</label>
-                    <p className="text-lg font-bold text-green-600 mt-2">
-                      {((parseFloat(viewingProduct.salePrice) - parseFloat(viewingProduct.costPrice)) / parseFloat(viewingProduct.costPrice) * 100).toFixed(1)}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-3 justify-end pt-6 border-t border-gray-200">
-                <button
-                  onClick={() => setShowViewModal(false)}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() => { setShowViewModal(false); handleEdit(viewingProduct); }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                >
-                  Edit Product
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Product Lifecycle Modal */}
+      <ProductLifecycleModal
+        isOpen={showLifecycleModal}
+        productId={lifecycleProductId}
+        onClose={() => setShowLifecycleModal(false)}
+      />
     </div>
   );
 }

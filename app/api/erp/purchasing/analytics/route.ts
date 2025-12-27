@@ -37,18 +37,27 @@ export async function GET(req: NextRequest) {
         SELECT 
           COUNT(*) as total_purchase_orders,
           COUNT(CASE WHEN status = 'draft' THEN 1 END) as draft_count,
-          COUNT(CASE WHEN status = 'confirmed' THEN 1 END) as confirmed_count,
+          COUNT(CASE WHEN status IN ('confirmed', 'sent') THEN 1 END) as confirmed_count,
           COUNT(CASE WHEN status = 'partially_received' THEN 1 END) as partially_received_count,
           COUNT(CASE WHEN status = 'received' THEN 1 END) as received_count,
           COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled_count,
           COALESCE(SUM(CAST(total_amount AS DECIMAL)), 0) as total_purchase_value,
-          COALESCE(SUM(CASE WHEN status IN ('confirmed', 'partially_received') THEN CAST(total_amount AS DECIMAL) ELSE 0 END), 0) as pending_value,
-          COALESCE(SUM(CASE WHEN status = 'received' THEN CAST(total_amount AS DECIMAL) ELSE 0 END), 0) as completed_value
+          COALESCE(SUM(CASE WHEN status IN ('confirmed', 'sent', 'partially_received') THEN CAST(total_amount AS DECIMAL) ELSE 0 END), 0) as pending_value,
+          COALESCE(SUM(CASE WHEN status IN ('received', 'confirmed', 'sent') THEN CAST(total_amount AS DECIMAL) ELSE 0 END), 0) as completed_value
         FROM purchase_orders
         WHERE erp_organization_id = ${user.erpOrganizationId}
         ${supplierId ? sql`AND supplier_id = ${supplierId}` : sql``}
         ${startDate && endDate ? sql`AND po_date >= CAST(${startDate} AS DATE) AND po_date <= CAST(${endDate} AS DATE)` : sql``}
       `);
+      console.log('PO Summary from database:', poSummary);
+      const poSummaryData = Array.from(poSummary)[0] as any;
+      console.log('PO Summary parsed:', {
+        total: poSummaryData?.total_purchase_orders,
+        draft: poSummaryData?.draft_count,
+        received: poSummaryData?.received_count,
+        partially_received: poSummaryData?.partially_received_count,
+        confirmed: poSummaryData?.confirmed_count
+      });
     } catch (e: any) {
       console.error('Error in poSummary:', e.message);
       console.error('Full error:', e);
@@ -69,6 +78,7 @@ export async function GET(req: NextRequest) {
         WHERE erp_organization_id = ${user.erpOrganizationId}
         ${startDate && endDate ? sql`AND rfq_date >= CAST(${startDate} AS DATE) AND rfq_date <= CAST(${endDate} AS DATE)` : sql``}
       `);
+      console.log('RFQ Summary from database:', rfqSummary);
     } catch (e: any) {
       console.error('Error in rfqSummary:', e.message);
       console.error('Full error:', e);

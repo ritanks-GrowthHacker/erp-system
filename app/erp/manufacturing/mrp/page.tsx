@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, TrendingUp, Package, ShoppingCart, RefreshCw } from 'lucide-react';
 import { getAuthToken } from '@/lib/utils/token';
+import { useAlert } from '@/components/common/CustomAlert';
+import { useRouter } from 'next/navigation';
 
 interface PendingMO {
   id: string;
@@ -57,6 +59,8 @@ interface MRPData {
 }
 
 export default function MRPPage() {
+  const { showAlert } = useAlert();
+  const router = useRouter();
   const [mrpData, setMrpData] = useState<MRPData | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -81,6 +85,56 @@ export default function MRPPage() {
       console.error('Error fetching MRP data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreatePO = async (product: LowStockProduct) => {
+    const token = getAuthToken();
+    if (!token) {
+      showAlert({ type: 'error', title: 'Error', message: 'No authentication token found' });
+      return;
+    }
+
+    try {
+      const poNumber = `PO-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      
+      const response = await fetch('/api/erp/purchasing/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          poNumber,
+          supplierId: null, // No supplier initially
+          orderDate: new Date().toISOString().split('T')[0],
+          expectedDeliveryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          status: 'draft',
+          notes: `Auto-created from MRP for low stock product: ${product.name}`,
+          lines: [{
+            productId: product.id,
+            quantity: product.reorderQuantity,
+            unitPrice: 0,
+          }],
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        showAlert({ 
+          type: 'success', 
+          title: 'PO Created', 
+          message: `Purchase Order ${poNumber} created. You can add supplier details later.` 
+        });
+        // Redirect to PO page or refresh
+        router.push('/erp/purchasing/orders');
+      } else {
+        const error = await response.json();
+        showAlert({ type: 'error', title: 'Error', message: `Failed to create PO: ${error.error || 'Unknown error'}` });
+      }
+    } catch (error) {
+      console.error('Error creating PO:', error);
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to create Purchase Order' });
     }
   };
 
@@ -307,7 +361,10 @@ export default function MRPPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{product.reorderPoint}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{product.reorderQuantity}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-semibold">
+                      <button 
+                        onClick={() => handleCreatePO(product)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-semibold"
+                      >
                         Create PO
                       </button>
                     </td>

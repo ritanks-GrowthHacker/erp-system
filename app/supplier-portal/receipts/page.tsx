@@ -176,95 +176,120 @@ export default function SupplierReceiptsPage() {
           </div>
         ) : (
           <>
-            {/* Receipts Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {receipts.map((receipt) => (
-                <div
-                  key={receipt.id}
-                  className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition overflow-hidden"
-                >
-                  {/* Receipt Header */}
-                  <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <FileText className="w-6 h-6 text-white" />
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(receipt.status)}`}>
-                        {receipt.status.replace('_', ' ').toUpperCase()}
-                      </span>
-                    </div>
-                    <h3 className="text-xl font-bold text-white">{receipt.receipt_number}</h3>
-                    <p className="text-blue-100 text-sm mt-1">{receipt.organization_name}</p>
-                  </div>
-
-                  {/* Receipt Body */}
-                  <div className="p-6 space-y-4">
-                    {/* Amount */}
-                    <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
-                      <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                        <DollarSign className="w-5 h-5 text-green-600" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-600">Amount Paid</p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          ${parseFloat(receipt.amount).toFixed(2)}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Invoice Details */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm">
-                        <FileText className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-600">Invoice:</span>
-                        <span className="font-medium text-gray-900">{receipt.invoice_number}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-600">Receipt Date:</span>
-                        <span className="font-medium text-gray-900">
-                          {new Date(receipt.receipt_date).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <CreditCard className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-600">Payment Method:</span>
-                        <span className="font-medium text-gray-900">
-                          {receipt.payment_method?.replace('_', ' ').toUpperCase() || 'N/A'}
-                        </span>
-                      </div>
-                      {receipt.payment_reference && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <span className="text-gray-600">Reference:</span>
-                          <span className="font-medium text-gray-900">{receipt.payment_reference}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Notes */}
-                    {receipt.notes && (
-                      <div className="pt-3 border-t border-gray-200">
-                        <p className="text-xs text-gray-600 mb-1">Notes:</p>
-                        <p className="text-sm text-gray-800">{receipt.notes}</p>
-                      </div>
-                    )}
-
-                    {/* Download Button */}
-                    <button
-                      type="button"
-                      onClick={() => handleDownloadReceipt(receipt.id, receipt.receipt_number)}
-                      className="w-full mt-4 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium flex items-center justify-center gap-2"
-                    >
-                      <Download className="w-4 h-4" />
-                      Download Receipt
-                    </button>
-
-                    {receipt.downloaded_at && (
-                      <p className="text-xs text-center text-gray-500 mt-2">
-                        Last downloaded: {new Date(receipt.downloaded_at).toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
+            {/* Receipts Table */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-linear-to-r from-gray-50 to-gray-100">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Receipt No.
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Invoice
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Organization
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Amount
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Payment Method
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {receipts.map((receipt) => (
+                      <React.Fragment key={receipt.id}>
+                        <tr className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-4 h-4 text-blue-600" />
+                              <span className="font-mono text-sm font-medium text-gray-900">
+                                {receipt.receipt_number}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-sm text-gray-900 font-medium">
+                              {receipt.invoice_number}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm text-gray-900">{receipt.organization_name}</span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-sm font-bold text-green-600">
+                              ₹{parseFloat(receipt.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-1 text-sm text-gray-600">
+                              <Calendar className="w-4 h-4" />
+                              {new Date(receipt.receipt_date).toLocaleDateString()}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-1">
+                              <CreditCard className="w-4 h-4 text-gray-400" />
+                              <span className="text-sm text-gray-900 capitalize">
+                                {receipt.payment_method?.replace('_', ' ') || 'N/A'}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(receipt.status)}`}>
+                              {receipt.status.toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <button
+                              onClick={() => handleDownloadReceipt(receipt.id, receipt.receipt_number)}
+                              className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition"
+                            >
+                              <Download className="w-4 h-4" />
+                              Download
+                            </button>
+                          </td>
+                        </tr>
+                        {(receipt.payment_reference || receipt.notes || receipt.downloaded_at) && (
+                          <tr className="bg-gray-50">
+                            <td colSpan={8} className="px-6 py-3">
+                              <div className="text-sm space-y-1">
+                                {receipt.payment_reference && (
+                                  <p className="text-gray-600">
+                                    <span className="font-semibold">Reference:</span> {receipt.payment_reference}
+                                  </p>
+                                )}
+                                {receipt.notes && (
+                                  <p className="text-gray-600">
+                                    <span className="font-semibold">Notes:</span> {receipt.notes}
+                                  </p>
+                                )}
+                                {receipt.downloaded_at && (
+                                  <p className="text-gray-500 text-xs">
+                                    Last downloaded: {new Date(receipt.downloaded_at).toLocaleString()}
+                                  </p>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* Pagination */}
@@ -324,7 +349,7 @@ export default function SupplierReceiptsPage() {
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <p className="text-sm text-gray-600 mb-1">Total Amount</p>
                 <p className="text-3xl font-bold text-green-600">
-                  ${receipts.reduce((sum, r) => sum + parseFloat(r.amount), 0).toFixed(2)}
+                  ₹{receipts.reduce((sum, r) => sum + parseFloat(r.amount), 0).toFixed(2)}
                 </p>
               </div>
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">

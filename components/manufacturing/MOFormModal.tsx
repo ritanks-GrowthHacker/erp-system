@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, RefreshCw } from 'lucide-react';
 import { getAuthToken } from '@/lib/utils/token';
+import { useAlert } from '@/components/common/CustomAlert';
 
 interface MOFormModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export default function MOFormModal({
   routings,
   warehouses
 }: MOFormModalProps) {
+  const { showAlert } = useAlert();
   const [generating, setGenerating] = useState(false);
   const [formData, setFormData] = useState({
     moNumber: '',
@@ -112,7 +114,7 @@ export default function MOFormModal({
       onClose();
     } catch (error) {
       console.error('Error saving MO:', error);
-      alert('Failed to save manufacturing order');
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to save manufacturing order' });
     }
   };
 

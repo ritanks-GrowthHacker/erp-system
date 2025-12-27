@@ -6,6 +6,8 @@ import { inputFieldDesign, modalLabels } from '@/components/modal/modalInputDesi
 import { X, Plus, Users, Building2, Mail, Phone, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import React from 'react';
 import { useAlert } from '@/components/common/CustomAlert';
+import CustomerOrdersModal from '@/components/modal/CustomerOrdersModal';
+import SendStatementModal from '@/components/modal/SendStatementModal';
 
 interface Customer {
   id: string;
@@ -37,6 +39,9 @@ export default function CustomersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [showOrdersModal, setShowOrdersModal] = useState(false);
+  const [showStatementModal, setShowStatementModal] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const itemsPerPage = 15;
   const [formData, setFormData] = useState({
     name: '',
@@ -279,7 +284,7 @@ export default function CustomersPage() {
                     <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => setExpandedRow(expandedRow === customer.id ? null : customer.id)}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
                         <div className="flex items-center gap-2">
-                          {expandedRow === customer.id ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                          
                           {customer.code || '-'}
                         </div>
                       </td>
@@ -322,7 +327,7 @@ export default function CustomersPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className="text-gray-500 text-xs">Click to expand</span>
+                       {expandedRow === customer.id ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
                       </td>
                     </tr>
                     {expandedRow === customer.id && (
@@ -335,10 +340,16 @@ export default function CustomersPage() {
                             >
                               Edit Customer
                             </button>
-                            <button className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium text-sm">
+                            <button
+                              onClick={() => { setSelectedCustomer(customer); setShowOrdersModal(true); }}
+                              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium text-sm"
+                            >
                               View Orders
                             </button>
-                            <button className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium text-sm">
+                            <button
+                              onClick={() => { setSelectedCustomer(customer); setShowStatementModal(true); }}
+                              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium text-sm"
+                            >
                               Send Statement
                             </button>
                           </div>
@@ -654,6 +665,16 @@ export default function CustomersPage() {
           </div>
         </div>
       )}
-    </div>
+      <CustomerOrdersModal
+        isOpen={showOrdersModal}
+        customer={selectedCustomer}
+        onClose={() => { setShowOrdersModal(false); setSelectedCustomer(null); }}
+      />
+
+      <SendStatementModal
+        isOpen={showStatementModal}
+        customer={selectedCustomer}
+        onClose={() => { setShowStatementModal(false); setSelectedCustomer(null); }}
+      />    </div>
   );
 }

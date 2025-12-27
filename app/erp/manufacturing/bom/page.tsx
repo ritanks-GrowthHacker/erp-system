@@ -2,32 +2,38 @@
 
 import { useState, useEffect } from 'react';
 import { getAuthToken } from '@/lib/utils/token';
-import { Plus, Trash2, Edit, Copy } from 'lucide-react';
+import { Plus, Trash2, Edit, Copy, Eye } from 'lucide-react';
 import BOMFormModal from '@/components/modal/BOMFormModal';
+import BOMViewModal from '@/components/modal/BOMViewModal';
+import BOMEditModal from '@/components/modal/BOMEditModal';
+import { useAlert } from '@/components/common/CustomAlert';
+import React from 'react';
 
 interface BOM {
   id: string;
   bomNumber: string;
   productId: string;
-  product: {
-    name: string;
-    sku: string;
-  };
-  version: number;
-  isActive: boolean;
+  productName: string;
+  productSku: string;
+  version: string;
+  status: string;
   effectiveFrom: string;
   effectiveTo: string | null;
-  scrapPercentage: number;
+  scrapPercentage: string;
   notes: string;
   createdAt: string;
 }
 
 export default function BOMPage() {
+  const { showAlert, showConfirm } = useAlert();
   const [boms, setBOMs] = useState<BOM[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [bomDetails, setBomDetails] = useState<any>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedBOM, setSelectedBOM] = useState<any>(null);
 
   useEffect(() => {
     fetchBOMs();
@@ -76,6 +82,67 @@ export default function BOMPage() {
     }
   };
 
+  const handleView = async (bom: BOM) => {
+    const token = getAuthToken();
+    try {
+      const response = await fetch(`/api/erp/manufacturing/bom/${bom.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedBOM(data);
+        setShowViewModal(true);
+      }
+    } catch (error) {
+      console.error('Error fetching BOM details:', error);
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to load BOM details' });
+    }
+  };
+
+  const handleEdit = async (bom: BOM) => {
+    const token = getAuthToken();
+    try {
+      const response = await fetch(`/api/erp/manufacturing/bom/${bom.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedBOM(data);
+        setShowEditModal(true);
+      }
+    } catch (error) {
+      console.error('Error fetching BOM details:', error);
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to load BOM details' });
+    }
+  };
+
+  const handleDelete = async (bomId: string) => {
+    showConfirm({
+      title: 'Delete BOM',
+      message: 'Are you sure you want to delete this BOM? This action cannot be undone.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        const token = getAuthToken();
+        try {
+          const response = await fetch(`/api/erp/manufacturing/bom/${bomId}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (response.ok) {
+            showAlert({ type: 'success', title: 'Success', message: 'BOM deleted successfully' });
+            fetchBOMs();
+          } else {
+            showAlert({ type: 'error', title: 'Error', message: 'Failed to delete BOM' });
+          }
+        } catch (error) {
+          console.error('Error deleting BOM:', error);
+          showAlert({ type: 'error', title: 'Error', message: 'Failed to delete BOM' });
+        }
+      },
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -112,7 +179,7 @@ export default function BOMPage() {
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="text-sm font-medium text-gray-600 mb-2">Active BOMs</div>
           <div className="text-3xl font-bold text-green-600">
-            {boms.filter(b => b.isActive).length}
+            {boms.filter(b => b.status === 'active').length}
           </div>
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-6">
@@ -121,12 +188,12 @@ export default function BOMPage() {
             {boms.filter(b => bomDetails?.lines?.some((l: any) => l.component?.hasBom)).length}
           </div>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="text-sm font-medium text-gray-600 mb-2">Avg Scrap %</div>
-          <div className="text-3xl font-bold text-yellow-600">
-            {boms.length > 0 ? (boms.reduce((sum, b) => sum + b.scrapPercentage, 0) / boms.length).toFixed(1) : 0}%
-          </div>
-        </div>
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+  <div className="text-sm font-medium text-gray-600 mb-2">Avg Scrap %</div>
+  <div className="text-3xl font-bold text-yellow-600">
+    {boms.length > 0 ? (boms.reduce((sum, b) => sum + (Number(b.scrapPercentage) || 0), 0) / boms.length).toFixed(1) : 0}%
+  </div>
+</div>
       </div>
 
       {/* BOM Table */}
@@ -153,7 +220,7 @@ export default function BOMPage() {
                 </tr>
               ) : (
                 boms.map((bom) => (
-                  <>
+                 <React.Fragment key={bom.id}>
                     <tr key={bom.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => toggleExpand(bom.id)}>
                       <td className="px-6 py-4 whitespace-nowrap font-medium text-blue-600">
                         <div className="flex items-center gap-2">
@@ -162,8 +229,8 @@ export default function BOMPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{bom.product.name}</div>
-                        <div className="text-sm text-gray-500">{bom.product.sku}</div>
+                        <div className="text-sm font-medium text-gray-900">{bom.productName}</div>
+                        <div className="text-sm text-gray-500">{bom.productSku}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">v{bom.version}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
@@ -174,20 +241,32 @@ export default function BOMPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          bom.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                          bom.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                         }`}>
-                          {bom.isActive ? 'ACTIVE' : 'INACTIVE'}
+                          {bom.status === 'active' ? 'ACTIVE' : 'INACTIVE'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm" onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-2">
-                          <button className="text-blue-600 hover:text-blue-800 font-medium" title="Edit">
+                          <button 
+                            onClick={() => handleView(bom)}
+                            className="text-blue-600 hover:text-blue-800 font-medium" 
+                            title="View"
+                          >
+                            <Eye size={16} />
+                          </button>
+                          <button 
+                            onClick={() => handleEdit(bom)}
+                            className="text-green-600 hover:text-green-800 font-medium" 
+                            title="Edit"
+                          >
                             <Edit size={16} />
                           </button>
-                          <button className="text-green-600 hover:text-green-800 font-medium" title="Copy">
-                            <Copy size={16} />
-                          </button>
-                          <button className="text-red-600 hover:text-red-800 font-medium" title="Delete">
+                          <button 
+                            onClick={() => handleDelete(bom.id)}
+                            className="text-red-600 hover:text-red-800 font-medium" 
+                            title="Delete"
+                          >
                             <Trash2 size={16} />
                           </button>
                         </div>
@@ -254,7 +333,7 @@ export default function BOMPage() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 ))
               )}
             </tbody>
@@ -267,6 +346,31 @@ export default function BOMPage() {
         isOpen={showForm}
         onClose={() => setShowForm(false)}
         onSuccess={fetchBOMs}
+      />
+
+      {/* BOM View Modal */}
+      <BOMViewModal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedBOM(null);
+        }}
+        bom={selectedBOM}
+      />
+
+      {/* BOM Edit Modal */}
+      <BOMEditModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedBOM(null);
+        }}
+        onSuccess={() => {
+          fetchBOMs();
+          setShowEditModal(false);
+          setSelectedBOM(null);
+        }}
+        bom={selectedBOM}
       />
     </div>
   );

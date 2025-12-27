@@ -151,7 +151,7 @@ export default function AdjustmentsPage() {
         onClose={() => setShowAdjustmentModal(false)}
         onSuccess={fetchAdjustments}
       />
-      /
+      
       {/* Filters */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="p-6">

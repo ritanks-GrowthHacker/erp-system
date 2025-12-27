@@ -108,18 +108,30 @@ export async function PUT(
       );
     }
 
-    // Calculate totals
+    // Calculate totals from lines
     let subtotal = 0;
     let taxAmount = 0;
-    if (lines && lines.length > 0) {
-      lines.forEach((line: any) => {
-        const lineSubtotal = parseFloat(line.quantityOrdered) * parseFloat(line.unitPrice);
-        const lineTax = lineSubtotal * (parseFloat(line.taxRate || 0) / 100);
-        subtotal += lineSubtotal;
-        taxAmount += lineTax;
-      });
+    
+    if (lines && Array.isArray(lines) && lines.length > 0) {
+      for (const line of lines) {
+        // Extract numeric values with fallbacks
+        const qty = Number(line.quantity || line.quantityOrdered || 0);
+        const price = Number(line.unitPrice || 0);
+        const tax = Number(line.taxRate || 0);
+        
+        // Skip invalid lines
+        if (!isNaN(qty) && !isNaN(price) && !isNaN(tax)) {
+          const lineTotal = qty * price;
+          subtotal += lineTotal;
+          taxAmount += (lineTotal * tax) / 100;
+        }
+      }
     }
-    const totalAmount = subtotal + taxAmount;
+    
+    // Ensure no NaN values
+    const finalSubtotal = isNaN(subtotal) || !isFinite(subtotal) ? 0 : subtotal;
+    const finalTaxAmount = isNaN(taxAmount) || !isFinite(taxAmount) ? 0 : taxAmount;
+    const finalTotalAmount = finalSubtotal + finalTaxAmount;
 
     // Update purchase order
     const [updatedOrder] = await erpDb
@@ -131,9 +143,9 @@ export async function PUT(
         expectedDeliveryDate: expectedDeliveryDate || existingOrder.expectedDeliveryDate,
         status: status || existingOrder.status,
         notes,
-        subtotal: subtotal.toFixed(2),
-        taxAmount: taxAmount.toFixed(2),
-        totalAmount: totalAmount.toFixed(2),
+        subtotal: finalSubtotal.toFixed(2),
+        taxAmount: finalTaxAmount.toFixed(2),
+        totalAmount: finalTotalAmount.toFixed(2),
         updatedAt: new Date(),
       })
       .where(eq(purchaseOrders.id, orderId))
@@ -152,7 +164,7 @@ export async function PUT(
         productId: line.productId,
         productVariantId: line.productVariantId || null,
         description: line.description,
-        quantityOrdered: line.quantityOrdered,
+        quantityOrdered: line.quantityOrdered || line.quantity,
         uomId: line.uomId || null,
         unitPrice: line.unitPrice,
         taxRate: line.taxRate || 0,

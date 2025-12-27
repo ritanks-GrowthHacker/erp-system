@@ -65,8 +65,8 @@ export const productSuppliers = pgTable('product_suppliers', {
 export const purchaseOrders = pgTable('purchase_orders', {
   id: uuid('id').primaryKey().defaultRandom(),
   erpOrganizationId: uuid('erp_organization_id').notNull().references(() => erpOrganizations.id, { onDelete: 'cascade' }),
-  supplierId: uuid('supplier_id').notNull().references(() => suppliers.id, { onDelete: 'restrict' }),
-  warehouseId: uuid('warehouse_id').notNull().references(() => warehouses.id, { onDelete: 'restrict' }),
+  supplierId: uuid('supplier_id').references(() => suppliers.id, { onDelete: 'restrict' }),
+  warehouseId: uuid('warehouse_id').references(() => warehouses.id, { onDelete: 'restrict' }),
   poNumber: varchar('po_number', { length: 100 }).notNull(),
   poDate: date('po_date').notNull().defaultNow(),
   expectedDeliveryDate: date('expected_delivery_date'),

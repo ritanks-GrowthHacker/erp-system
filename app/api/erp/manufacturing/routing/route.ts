@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
       .where(eq(routings.erpOrganizationId, erpOrganizationId))
       .orderBy(desc(routings.createdAt));
 
-    return NextResponse.json(routingList);
+    return NextResponse.json({ routings: routingList });
   } catch (error) {
     console.error('Error fetching routings:', error);
     return NextResponse.json({ error: 'Failed to fetch routings' }, { status: 500 });

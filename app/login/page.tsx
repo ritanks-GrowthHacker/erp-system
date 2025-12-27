@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
 import { Icons } from '@/components/ui/icons';
 import { useAuthStore } from '@/lib/store/authStore';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,6 +16,12 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [showLoader, setShowLoader] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowLoader(false), 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +57,58 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <>
+      <AnimatePresence>
+        {showLoader && (
+          <motion.div
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-blue-900 via-blue-700 to-indigo-900"
+          >
+            <div className="text-center">
+              <motion.div
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                className="mb-6"
+              >
+                <div className="w-24 h-24 bg-white rounded-2xl shadow-2xl flex items-center justify-center mx-auto">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  >
+                    <Icons.Inventory className="text-blue-600" size={48} />
+                  </motion.div>
+                </div>
+              </motion.div>
+              <motion.h1
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="text-4xl font-bold text-white mb-2"
+              >
+                Welcome Back
+              </motion.h1>
+              <motion.p
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="text-blue-200"
+              >
+                Loading your workspace...
+              </motion.p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: showLoader ? 0 : 1 }}
+        transition={{ duration: 0.5 }}
+        className="min-h-screen flex"
+      >
       {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-linear-to-br from-[#1E40AF] via-[#1E3A8A] to-[#0F172A] p-12 flex-col justify-between relative overflow-hidden">
         {/* Background Pattern */}
@@ -211,7 +269,8 @@ export default function LoginPage() {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+        </div>
+      </motion.div>
+    </>
   );
 }

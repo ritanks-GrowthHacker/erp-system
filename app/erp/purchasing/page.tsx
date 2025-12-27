@@ -5,8 +5,10 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getAuthToken } from '@/lib/utils/token';
 import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function PurchasingDashboard() {
+  const [showLoader, setShowLoader] = useState(true);
   const [stats, setStats] = useState({
     rfqs: { total: 0, pending: 0, quoted: 0 },
     quotations: { total: 0, pending: 0, accepted: 0, rejected: 0 },
@@ -16,6 +18,11 @@ export default function PurchasingDashboard() {
     suppliers: { total: 0, active: 0 },
   });
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowLoader(false), 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     fetchDashboardData();
@@ -43,11 +50,83 @@ export default function PurchasingDashboard() {
   };
 
   return (
-    <div className="p-6">
-      {/* Page Title */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-gray-900 mb-1">Purchasing Dashboard</h2>
-        <p className="text-sm text-gray-500">Manage purchase orders, supplier invoices, and goods receipts</p>
+    <div className="relative min-h-screen">
+      <AnimatePresence>
+        {showLoader && (
+          <motion.div
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-linear-to-br from-sky-600 via-blue-600 to-indigo-600"
+          >
+            <div className="text-center">
+              <motion.div
+                animate={{ 
+                  scale: [1, 1.1, 1],
+                  rotate: [0, 5, -5, 0]
+                }}
+                transition={{ 
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+                className="mb-8 inline-block p-2 bg-white rounded-2xl shadow-2xl"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-sky-600">
+                  <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>
+                </svg>
+              </motion.div>
+              
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="text-4xl font-bold text-white mb-2"
+              >
+                Purchasing
+              </motion.h1>
+              
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="text-blue-100 text-lg mb-8"
+              >
+                Loading procurement data...
+              </motion.p>
+
+              <div className="flex items-center justify-center space-x-2">
+                <motion.div
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+                  className="w-3 h-3 bg-white rounded-full"
+                />
+                <motion.div
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
+                  className="w-3 h-3 bg-white rounded-full"
+                />
+                <motion.div
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
+                  className="w-3 h-3 bg-white rounded-full"
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: showLoader ? 0 : 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div>
+          {/* Page Title */}
+          <div className="mb-6">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-1">Purchasing Dashboard</h2>
+            <p className="text-sm text-gray-500">Manage purchase orders, supplier invoices, and goods receipts</p>
       </div>
 
       {/* Stats Grid */}
@@ -269,6 +348,8 @@ export default function PurchasingDashboard() {
           </div>
         </div>
       </div>
+    </div>
+      </motion.div>
     </div>
   );
 }

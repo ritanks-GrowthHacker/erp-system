@@ -40,11 +40,18 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const quotations = await erpDb.query.supplierQuotationSubmissions.findMany({
-      where: eq(supplierQuotationSubmissions.supplierId, supplier.supplierId as string),
-      orderBy: [desc(supplierQuotationSubmissions.submissionDate)]
-    });
+    // Fetch quotations with PO reference
+    const result = await erpDb.execute(sql`
+      SELECT 
+        sq.*,
+        po.po_number
+      FROM supplier_quotation_submissions sq
+      LEFT JOIN purchase_orders po ON sq.purchase_order_id = po.id
+      WHERE sq.supplier_id = ${supplier.supplierId}
+      ORDER BY sq.submission_date DESC, sq.created_at DESC
+    `);
     
+    const quotations = Array.from(result);
     console.log('Fetched quotations:', quotations.length, 'records');
 
     return NextResponse.json({ quotations });

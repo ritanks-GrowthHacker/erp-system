@@ -40,6 +40,7 @@ export default function ManufacturingOrdersPage() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [editingOrder, setEditingOrder] = useState<any | null>(null);
   const [viewingOrder, setViewingOrder] = useState<any | null>(null);
+  const [progressUpdate, setProgressUpdate] = useState<{ orderId: string; producedQty: number } | null>(null);
 
   useEffect(() => {
     fetchAllData();
@@ -225,6 +226,31 @@ export default function ManufacturingOrdersPage() {
         }
       }
     });
+  };
+
+  const handleUpdateProgress = async (orderId: string, producedQty: number) => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      const res = await fetch(`/api/erp/manufacturing/orders/${orderId}/progress`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ producedQuantity: producedQty }),
+      });
+
+      if (!res.ok) throw new Error('Failed to update progress');
+
+      await fetchOrders();
+      setProgressUpdate(null);
+      showAlert({ type: 'success', title: 'Success', message: 'Production progress updated successfully' });
+    } catch (error) {
+      console.error('Error updating progress:', error);
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to update progress' });
+    }
   };
 
   const handleCreateNew = () => {
@@ -443,6 +469,62 @@ export default function ManufacturingOrdersPage() {
                       <tr>
                         <td colSpan={9} className="bg-gray-50 p-6">
                           <div className="space-y-6">
+                            {/* Progress Update Section */}
+                            <div className="bg-white p-4 rounded-lg border border-gray-200">
+                              <h4 className="font-semibold text-gray-800 mb-3">Update Production Progress</h4>
+                              <div className="flex gap-4 items-end">
+                                <div className="flex-1">
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Produced Quantity
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max={order.plannedQuantity}
+                                    value={progressUpdate?.orderId === order.id ? progressUpdate.producedQty : order.producedQuantity}
+                                    onChange={(e) => setProgressUpdate({ 
+                                      orderId: order.id, 
+                                      producedQty: parseFloat(e.target.value) || 0 
+                                    })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Enter produced quantity"
+                                  />
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Planned: {order.plannedQuantity} {order.uom}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    if (progressUpdate?.orderId === order.id) {
+                                      handleUpdateProgress(order.id, progressUpdate.producedQty);
+                                    }
+                                  }}
+                                  disabled={!progressUpdate || progressUpdate.orderId !== order.id}
+                                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                >
+                                  <Play className="w-4 h-4 inline mr-2" />
+                                  Update Progress
+                                </button>
+                              </div>
+                              <div className="mt-3 flex items-center gap-2">
+                                <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                  <div 
+                                    className={`h-2 rounded-full ${
+                                      (order.producedQuantity / order.plannedQuantity) * 100 === 100 
+                                        ? 'bg-green-600' 
+                                        : 'bg-blue-600'
+                                    }`}
+                                    style={{ 
+                                      width: `${Math.min((order.producedQuantity / order.plannedQuantity) * 100, 100)}%` 
+                                    }}
+                                  />
+                                </div>
+                                <span className="text-sm font-medium text-gray-600">
+                                  {Math.round((order.producedQuantity / order.plannedQuantity) * 100)}%
+                                </span>
+                              </div>
+                            </div>
+
                             <div className="flex gap-3">
                               <button
                                 onClick={() => handleView(order)}

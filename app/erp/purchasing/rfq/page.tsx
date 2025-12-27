@@ -5,12 +5,16 @@ import { useState, useEffect } from 'react';
 import { getAuthToken } from '@/lib/utils/token';
 import RFQModal from '@/components/modal/RFQModal';
 import { useAlert } from '@/components/common/CustomAlert';
+import EmailSentAnimation from '@/components/common/EmailSentAnimation';
 
 interface RFQ {
   id: string;
   rfqNumber: string;
+  rfq_number?: string;
   rfqDate: string;
+  rfq_date?: string;
   deadlineDate: string;
+  deadline_date?: string;
   title: string;
   status: string;
   suppliers: any[];
@@ -45,6 +49,7 @@ export default function RFQPage() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showEmailAnimation, setShowEmailAnimation] = useState(false);
   const [selectedRFQ, setSelectedRFQ] = useState<any>(null);
   const [sendingRFQ, setSendingRFQ] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -253,8 +258,11 @@ export default function RFQPage() {
 
           if (response.ok) {
             const data = await response.json();
-            showAlert({ type: 'success', title: 'Success', message: data.message });
-            fetchRFQs(); // Refresh to show updated status
+            setShowEmailAnimation(true);
+            setTimeout(() => {
+              showAlert({ type: 'success', title: 'Success', message: data.message });
+              fetchRFQs(); // Refresh to show updated status
+            }, 2000);
           } else {
             const data = await response.json();
             showAlert({ type: 'error', title: 'Error', message: data.error });
@@ -348,7 +356,9 @@ export default function RFQPage() {
           if (response.ok) {
             const data = await response.json();
             showAlert({ type: 'success', title: 'Success', message: data.message });
-            handleViewRFQ(selectedRFQ.id); // Refresh RFQ details
+            // Refresh both RFQ details AND the main list to update stats
+            await fetchRFQs();
+            await handleViewRFQ(selectedRFQ.id);
           } else {
             const data = await response.json();
             showAlert({ type: 'error', title: 'Error', message: data.error });
@@ -420,19 +430,19 @@ export default function RFQPage() {
         <div className="bg-white rounded-xl p-5 border border-gray-200">
           <div className="text-sm font-medium text-gray-600 mb-2">Sent</div>
           <div className="text-2xl font-bold text-blue-600">
-            {rfqs.filter(r => r.status === 'sent').length}
+            {rfqs.filter(r => r.status === 'sent' || r.status === 'in_progress').length}
           </div>
         </div>
         <div className="bg-white rounded-xl p-5 border border-gray-200">
-          <div className="text-sm font-medium text-gray-600 mb-2">In Progress</div>
-          <div className="text-2xl font-bold text-yellow-600">
-            {rfqs.filter(r => r.status === 'in_progress').length}
-          </div>
-        </div>
-        <div className="bg-white rounded-xl p-5 border border-gray-200">
-          <div className="text-sm font-medium text-gray-600 mb-2">Received Quotations</div>
+          <div className="text-sm font-medium text-gray-600 mb-2">Completed</div>
           <div className="text-2xl font-bold text-green-600">
-            {receivedQuotationsCount}
+            {rfqs.filter(r => r.status === 'closed' || r.status === 'received').length}
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Quotes Received</div>
+          <div className="text-2xl font-bold text-purple-600">
+            {rfqs.reduce((sum, r) => sum + (r.quotationsCount || 0), 0)}
           </div>
         </div>
       </div>
@@ -470,11 +480,13 @@ export default function RFQPage() {
               <tbody className="divide-y divide-gray-200">
                 {rfqs.map((rfq) => (
                   <tr key={rfq.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{rfq.rfqNumber}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(rfq.rfqDate).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{rfq.rfqNumber || rfq.rfq_number || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {rfq.rfqDate || rfq.rfq_date ? new Date((rfq.rfqDate || rfq.rfq_date)!).toLocaleDateString('en-IN') : '-'}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rfq.title}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {rfq.deadlineDate ? new Date(rfq.deadlineDate).toLocaleDateString() : '-'}
+                      {rfq.deadlineDate || rfq.deadline_date ? new Date((rfq.deadlineDate || rfq.deadline_date)!).toLocaleDateString('en-IN') : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rfq.suppliers?.length || 0}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rfq.lines?.length || 0}</td>
@@ -696,6 +708,12 @@ export default function RFQPage() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSuccess={fetchRFQs}
+      />
+
+      {/* Email Sent Animation */}
+      <EmailSentAnimation 
+        show={showEmailAnimation} 
+        onComplete={() => setShowEmailAnimation(false)}
       />
     </div>
   );

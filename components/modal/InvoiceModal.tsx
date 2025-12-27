@@ -30,9 +30,10 @@ interface InvoiceModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  editInvoice?: any;
 }
 
-export default function InvoiceModal({ isOpen, onClose, onSuccess }: InvoiceModalProps) {
+export default function InvoiceModal({ isOpen, onClose, onSuccess, editInvoice }: InvoiceModalProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -40,6 +41,7 @@ export default function InvoiceModal({ isOpen, onClose, onSuccess }: InvoiceModa
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -61,15 +63,42 @@ export default function InvoiceModal({ isOpen, onClose, onSuccess }: InvoiceModa
 
   useEffect(() => {
     if (isOpen) {
-      generateInvoiceNumber();
+      if (editInvoice) {
+        // Pre-fill form for edit mode
+        setIsEditMode(true);
+        setInvoiceNumber(editInvoice.invoiceNumber || '');
+        setCustomerId(editInvoice.customer?.id || editInvoice.customerId || '');
+        setInvoiceDate(editInvoice.invoiceDate?.split('T')[0] || new Date().toISOString().split('T')[0]);
+        setDueDate(editInvoice.dueDate?.split('T')[0] || '');
+        setPaymentTerms(editInvoice.paymentTerms ? `net${editInvoice.paymentTerms}` : 'net30');
+        setStatus(editInvoice.status || 'draft');
+        setNotes(editInvoice.notes || '');
+        
+        // Convert line items to InvoiceItem format
+        if (editInvoice.lines && editInvoice.lines.length > 0) {
+          const convertedItems = editInvoice.lines.map((line: any) => ({
+            productId: line.productId,
+            productName: line.product?.name || line.description,
+            sku: line.product?.sku || '',
+            quantity: parseFloat(line.quantity),
+            unitPrice: parseFloat(line.unitPrice),
+            taxRate: parseFloat(line.taxRate || 0),
+            total: parseFloat(line.quantity) * parseFloat(line.unitPrice) * (1 + parseFloat(line.taxRate || 0) / 100)
+          }));
+          setItems(convertedItems);
+        }
+      } else {
+        // Create mode - generate new invoice number
+        setIsEditMode(false);
+        generateInvoiceNumber();
+        setInvoiceDate(new Date().toISOString().split('T')[0]);
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 30);
+        setDueDate(dueDate.toISOString().split('T')[0]);
+      }
       fetchCustomers();
-      setInvoiceDate(new Date().toISOString().split('T')[0]);
-      // Auto-set due date to 30 days from now
-      const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + 30);
-      setDueDate(dueDate.toISOString().split('T')[0]);
     }
-  }, [isOpen]);
+  }, [isOpen, editInvoice]);
 
   // Auto-populate unit price when product is selected
   useEffect(() => {
@@ -296,8 +325,8 @@ export default function InvoiceModal({ isOpen, onClose, onSuccess }: InvoiceModa
         {/* Header */}
         <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100 bg-slate-50/50 sticky top-0 z-10">
           <div>
-            <h3 className="text-xl font-bold text-slate-900">Create Invoice</h3>
-            <p className="text-sm text-slate-500 mt-1">Generate customer invoice</p>
+            <h3 className="text-xl font-bold text-slate-900">{isEditMode ? 'Edit Invoice' : 'Create Invoice'}</h3>
+            <p className="text-sm text-slate-500 mt-1">{isEditMode ? 'Update invoice details' : 'Generate customer invoice'}</p>
           </div>
           <button
             type="button"

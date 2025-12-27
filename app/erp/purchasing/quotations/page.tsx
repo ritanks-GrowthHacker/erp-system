@@ -22,6 +22,8 @@ interface Quotation {
   quotation_type: string;
   file_url?: string;
   file_name?: string;
+  po_number?: string;
+  purchase_order_id?: string;
 }
 
 export default function QuotationsPage() {
@@ -30,10 +32,51 @@ export default function QuotationsPage() {
   const [loading, setLoading] = useState(true);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
+  const [lastCheckedTime, setLastCheckedTime] = useState<Date>(new Date());
 
   useEffect(() => {
     fetchQuotations();
+    
+    // Check for new quotations every 30 seconds
+    const interval = setInterval(() => {
+      checkForNewQuotations();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
+
+  const checkForNewQuotations = async () => {
+    try {
+      const token = getAuthToken();
+      const response = await fetch('/api/erp/purchasing/supplier-quotations', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const newQuots = (data.quotations || []).filter((q: Quotation) => {
+          const submissionDate = new Date(q.submission_date);
+          return submissionDate > lastCheckedTime && q.po_number && q.status === 'submitted';
+        });
+
+        if (newQuots.length > 0) {
+          newQuots.forEach((q: Quotation) => {
+            showAlert({
+              type: 'info',
+              title: 'Quotation Received',
+              message: `New quotation ${q.submission_number} received for PO ${q.po_number}`,
+            });
+          });
+          setLastCheckedTime(new Date());
+          fetchQuotations(); // Refresh the list
+        }
+      }
+    } catch (error) {
+      console.error('Error checking for new quotations:', error);
+    }
+  };
 
   const handleViewQuotation = (quotation: Quotation) => {
     setSelectedQuotation(quotation);
@@ -226,6 +269,7 @@ export default function QuotationsPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Date</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Supplier</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">RFQ Reference</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">PO Reference</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Valid Until</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Total Amount</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Delivery Time</th>
@@ -247,6 +291,15 @@ export default function QuotationsPage() {
                         </div>
                       ) : (
                         '-'
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {quotation.po_number ? (
+                        <Link href={`/erp/purchasing/orders`} className="text-blue-600 hover:text-blue-800 font-medium">
+                          {quotation.po_number}
+                        </Link>
+                      ) : (
+                        <span className="text-gray-400">-</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

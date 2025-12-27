@@ -74,6 +74,9 @@ function SubmitQuotationContent() {
       return;
     }
 
+    // Fetch purchase orders sent to this supplier
+    fetchPurchaseOrders(token);
+
     // Check if RFQ ID is in URL
     const rfqId = searchParams.get('rfq_id');
     if (rfqId) {
@@ -82,6 +85,21 @@ function SubmitQuotationContent() {
       setQuotationType('manual_entry'); // Force manual entry for RFQ quotes
     }
   }, [searchParams]);
+
+  const fetchPurchaseOrders = async (token: string) => {
+    try {
+      const response = await fetch('/api/supplier-portal/purchase-orders', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPurchaseOrders(data.purchaseOrders || []);
+      }
+    } catch (error) {
+      console.error('Error fetching purchase orders:', error);
+    }
+  };
 
   const fetchRFQDetails = async (rfqId: string, token: string) => {
     try {
@@ -346,6 +364,37 @@ function SubmitQuotationContent() {
                   <p className="text-sm text-gray-600">Enter quotation details manually</p>
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Purchase Order Selection */}
+          {!selectedRFQ && (
+            <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Purchase Order Reference</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Select a purchase order to submit your quotation against (optional for RFQ-based quotations)
+              </p>
+              {purchaseOrders.length === 0 ? (
+                <div className="p-4 bg-gray-50 rounded-lg text-center">
+                  <p className="text-gray-600">No purchase orders available</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Purchase orders will appear here when sent to you by the company
+                  </p>
+                </div>
+              ) : (
+                <select
+                  value={formData.purchaseOrderId}
+                  onChange={(e) => setFormData({ ...formData, purchaseOrderId: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                >
+                  <option value="">Select a Purchase Order (Optional)</option>
+                  {purchaseOrders.map((po: any) => (
+                    <option key={po.id} value={po.id}>
+                      {po.po_number} - {new Date(po.po_date).toLocaleDateString()} - ₹{parseFloat(po.total_amount || 0).toLocaleString('en-IN')} {po.quotation_count > 0 ? '(Already Quoted)' : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           )}
 

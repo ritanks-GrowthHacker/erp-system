@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
       .where(eq(boms.erpOrganizationId, erpOrganizationId))
       .orderBy(desc(boms.createdAt));
 
-    return NextResponse.json(bomList);
+    return NextResponse.json({ boms: bomList });
   } catch (error) {
     console.error('Error fetching BOMs:', error);
     return NextResponse.json({ error: 'Failed to fetch BOMs' }, { status: 500 });

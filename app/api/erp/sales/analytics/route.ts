@@ -20,10 +20,14 @@ export async function GET(req: NextRequest) {
     const days = parseInt(searchParams.get('days') || '30');
     const customerId = searchParams.get('customerId');
     
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-    const startDateStr = startDate.toISOString().split('T')[0];
-    const endDateStr = new Date().toISOString().split('T')[0];
+    // Calculate date filter based on days parameter
+    let dateFilter = sql``;
+    if (days > 0) {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      const startDateStr = startDate.toISOString().split('T')[0];
+      dateFilter = sql`AND so_date >= ${startDateStr}`;
+    }
 
     let orderSummary: any = [];
     let quotationSummary: any = [];
@@ -38,16 +42,17 @@ export async function GET(req: NextRequest) {
       orderSummary = await erpDb.execute(sql`
         SELECT 
           COUNT(*) as total_orders,
-          COUNT(CASE WHEN status = 'draft' THEN 1 END) as draft_count,
-          COUNT(CASE WHEN status = 'confirmed' THEN 1 END) as confirmed_count,
+          COUNT(CASE WHEN status = 'draft' OR status = 'pending' THEN 1 END) as draft_count,
+          COUNT(CASE WHEN status = 'confirmed' OR status = 'completed' OR status = 'delivered' OR status = 'in_progress' THEN 1 END) as confirmed_count,
           COUNT(CASE WHEN status = 'in_progress' THEN 1 END) as in_progress_count,
-          COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_count,
+          COUNT(CASE WHEN status = 'completed' OR status = 'delivered' THEN 1 END) as completed_count,
           COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled_count,
           COALESCE(SUM(CAST(total_amount AS DECIMAL)), 0) as total_sales_value,
           COALESCE(AVG(CAST(total_amount AS DECIMAL)), 0) as avg_order_value
         FROM sales_orders
         WHERE erp_organization_id = ${user.erpOrganizationId}
         ${customerId ? sql`AND customer_id = ${customerId}` : sql``}
+        ${dateFilter}
       `);
     } catch (e: any) {
       console.error('Error in orderSummary:', e.message);
@@ -77,6 +82,7 @@ export async function GET(req: NextRequest) {
         FROM sales_quotations
         WHERE erp_organization_id = ${user.erpOrganizationId}
         ${customerId ? sql`AND customer_id = ${customerId}` : sql``}
+        ${dateFilter}
       `);
     } catch (e: any) {
       console.error('Error in quotationSummary:', e.message);
@@ -107,6 +113,7 @@ export async function GET(req: NextRequest) {
         FROM sales_invoices
         WHERE erp_organization_id = ${user.erpOrganizationId}
         ${customerId ? sql`AND customer_id = ${customerId}` : sql``}
+        ${dateFilter}
       `);
     } catch (e: any) {
       console.error('Error in invoiceSummary:', e.message);
@@ -132,11 +139,12 @@ export async function GET(req: NextRequest) {
           c.code,
           COUNT(so.id) as total_orders,
           COALESCE(SUM(CAST(so.total_amount AS DECIMAL)), 0) as total_sales_value,
-          COUNT(CASE WHEN so.status = 'completed' THEN 1 END) as completed_orders
+          COUNT(CASE WHEN so.status = 'completed' OR so.status = 'delivered' THEN 1 END) as completed_orders
         FROM customers c
         LEFT JOIN sales_orders so ON c.id = so.customer_id
         WHERE c.erp_organization_id = ${user.erpOrganizationId}
         AND so.id IS NOT NULL
+        ${dateFilter}
         GROUP BY c.id, c.name, c.code
         ORDER BY total_sales_value DESC
         LIMIT 10
@@ -147,16 +155,16 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-      // Sales trends by month (last 12 months)
+      // Sales trends by month (last 12 months or filtered period)
       salesTrends = await erpDb.execute(sql`
         SELECT 
-          TO_CHAR(order_date, 'YYYY-MM') as month,
+          TO_CHAR(so_date, 'YYYY-MM') as month,
           COUNT(*) as order_count,
           COALESCE(SUM(CAST(total_amount AS DECIMAL)), 0) as total_value
         FROM sales_orders
         WHERE erp_organization_id = ${user.erpOrganizationId}
-          AND order_date >= CURRENT_DATE - INTERVAL '12 months'
-        GROUP BY TO_CHAR(order_date, 'YYYY-MM')
+          ${days > 0 ? sql`AND so_date >= CURRENT_DATE - INTERVAL '${sql.raw(days.toString())} days'` : sql`AND so_date >= CURRENT_DATE - INTERVAL '12 months'`}
+        GROUP BY TO_CHAR(so_date, 'YYYY-MM')
         ORDER BY month DESC
       `);
     } catch (e: any) {
@@ -172,13 +180,14 @@ export async function GET(req: NextRequest) {
           p.name,
           p.sku,
           COUNT(DISTINCT sol.sales_order_id) as order_count,
-          COALESCE(SUM(CAST(sol.quantity AS DECIMAL)), 0) as total_quantity,
-          COALESCE(SUM(CAST(sol.quantity AS DECIMAL) * CAST(sol.unit_price AS DECIMAL)), 0) as total_value
+          COALESCE(SUM(CAST(sol.quantity_ordered AS DECIMAL)), 0) as total_quantity,
+          COALESCE(SUM(CAST(sol.quantity_ordered AS DECIMAL) * CAST(sol.unit_price AS DECIMAL)), 0) as total_value
         FROM sales_order_lines sol
         JOIN sales_orders so ON sol.sales_order_id = so.id
         JOIN products p ON sol.product_id = p.id
         WHERE so.erp_organization_id = ${user.erpOrganizationId}
         ${customerId ? sql`AND so.customer_id = ${customerId}` : sql``}
+        ${dateFilter}
         GROUP BY p.id, p.name, p.sku
         ORDER BY total_value DESC
         LIMIT 10
@@ -199,6 +208,7 @@ export async function GET(req: NextRequest) {
         FROM sales_invoices
         WHERE erp_organization_id = ${user.erpOrganizationId}
         ${customerId ? sql`AND customer_id = ${customerId}` : sql``}
+        ${dateFilter}
         GROUP BY status
       `);
     } catch (e: any) {

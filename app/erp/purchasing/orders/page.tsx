@@ -10,6 +10,7 @@ import POModal from '@/components/modal/POModal';
 import ViewPOModal from '@/components/modal/ViewPOModal';
 import EditPOModal from '@/components/modal/EditPOModal';
 import { useAlert } from '@/components/common/CustomAlert';
+import EmailSentAnimation from '@/components/common/EmailSentAnimation';
 
 interface PurchaseOrder {
   id: string;
@@ -62,6 +63,7 @@ export default function PurchaseOrdersPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [sendingPO, setSendingPO] = useState<string | null>(null);
+  const [showEmailAnimation, setShowEmailAnimation] = useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -171,6 +173,7 @@ export default function PurchaseOrdersPage() {
       const product = products.find(p => p.id === value);
       if (product) {
         updated[index].productName = product.name;
+        // Auto-populate unit price from product's cost price
         updated[index].unitPrice = product.costPrice || '0';
       }
     }
@@ -275,8 +278,11 @@ export default function PurchaseOrdersPage() {
       });
 
       if (response.ok) {
-        showAlert({ type: 'success', title: 'Success', message: 'Purchase Order sent successfully!' });
-        fetchOrders(); // Refresh to show updated status
+        setShowEmailAnimation(true);
+        setTimeout(() => {
+          showAlert({ type: 'success', title: 'Success', message: 'Purchase Order sent successfully!' });
+          fetchOrders(); // Refresh to show updated status
+        }, 2000);
       } else {
         const data = await response.json();
         showAlert({ type: 'error', title: 'Error', message: data.error });
@@ -286,6 +292,41 @@ export default function PurchaseOrdersPage() {
       showAlert({ type: 'error', title: 'Error', message: 'Failed to send purchase order' });
         } finally {
           setSendingPO(null);
+        }
+      }
+    });
+  };
+
+  const handleGenerateReceipt = async (orderId: string) => {
+    showConfirm({
+      title: 'Generate Receipt',
+      message: 'Generate a goods receipt for this purchase order?',
+      onConfirm: async () => {
+        try {
+          const token = getAuthToken();
+          const response = await fetch(`/api/erp/purchasing/orders/${orderId}/generate-receipt`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            showAlert({ 
+              type: 'success', 
+              title: 'Success', 
+              message: `Receipt ${data.receipt.receiptNumber} generated successfully!` 
+            });
+            fetchOrders();
+          } else {
+            const data = await response.json();
+            showAlert({ type: 'error', title: 'Error', message: data.error });
+          }
+        } catch (error) {
+          console.error('Error generating receipt:', error);
+          showAlert({ type: 'error', title: 'Error', message: 'Failed to generate receipt' });
         }
       }
     });
@@ -379,8 +420,8 @@ export default function PurchaseOrdersPage() {
       });
 
       if (response.ok) {
-        showAlert({ type: 'success', title: 'Success', message: 'Purchase Order created successfully!' });
-        setShowCreateModal(false);
+        showAlert({ type: 'success', title: 'Success', message: 'Purchase Order updated successfully!' });
+        setShowEditModal(false);
         resetForm();
         fetchOrders();
       } else {
@@ -495,8 +536,12 @@ export default function PurchaseOrdersPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       {new Date(order.poDate).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{order.supplier.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{order.warehouse.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      {order.supplier?.name || <span className="text-gray-400 italic">No supplier</span>}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      {order.warehouse?.name || <span className="text-gray-400 italic">No warehouse</span>}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">₹{order.totalAmount}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
@@ -508,12 +553,12 @@ export default function PurchaseOrdersPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
                         {order.status === 'draft' && (
                           <button
                             onClick={() => handleSendPO(order.id)}
                             disabled={sendingPO === order.id}
-                            className="text-blue-600 hover:text-blue-700 font-medium"
+                            className="text-blue-600 border hover:text-blue-700 font-medium p-1 text-xs rounded-md cursor-pointer"
                           >
                             {sendingPO === order.id ? 'Sending...' : 'Send'}
                           </button>
@@ -521,16 +566,24 @@ export default function PurchaseOrdersPage() {
                         {order.status === 'sent' && (
                           <span className="text-green-600 text-sm">✓ Sent</span>
                         )}
+                        {['confirmed', 'sent', 'partially_received'].includes(order.status) && (
+                          <button
+                            onClick={() => handleGenerateReceipt(order.id)}
+                            className="text-purple-600 hover:text-purple-700 border font-medium text-xs p-1 rounded-md cursor-pointer"
+                          >
+                            Generate Receipt
+                          </button>
+                        )}
                         <button
                           onClick={() => handleViewOrder(order.id)}
-                          className="text-blue-600 hover:text-blue-700 font-medium"
+                          className="text-blue-600 text-xs rounded-md cursor-pointer hover:text-blue-700 border font-medium p-1"
                         >
                           View
                         </button>
                         {(order.status === 'draft' || order.status === 'sent') && (
                           <button
                             onClick={() => handleEditOrder(order.id)}
-                            className="text-gray-600 hover:text-gray-700 font-medium"
+                            className="text-gray-600 text-xs rounded-md cursor-pointer hover:text-gray-700 border p-1 font-medium"
                           >
                             Edit
                           </button>
@@ -550,6 +603,12 @@ export default function PurchaseOrdersPage() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSuccess={fetchOrders}
+      />
+
+      {/* Email Sent Animation */}
+      <EmailSentAnimation 
+        show={showEmailAnimation} 
+        onComplete={() => setShowEmailAnimation(false)}
       />
 
       {/* View PO Modal */}

@@ -49,7 +49,49 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    return NextResponse.json({ salesOrder: order });
+    // Check if there's a delivery assignment
+    let deliveryAssignment = null;
+    try {
+      const deliveryResult = await erpDb.execute(sql`
+        SELECT 
+          id,
+          delivery_partner_name as partner_name,
+          delivery_partner_mobile as partner_mobile,
+          delivery_partner_email as partner_email,
+          status,
+          assigned_at,
+          picked_up_at,
+          delivered_at
+         FROM delivery_assignments
+         WHERE sales_order_id = ${id}
+           AND erp_organization_id = ${user.erpOrganizationId}
+      `);
+      
+      const deliveryResultArray = Array.from(deliveryResult);
+      if (deliveryResultArray.length > 0) {
+        const delivery = deliveryResultArray[0] as any;
+        deliveryAssignment = {
+          id: delivery.id,
+          partnerName: delivery.partner_name,
+          partnerMobile: delivery.partner_mobile,
+          partnerEmail: delivery.partner_email,
+          status: delivery.status,
+          assigned_at: delivery.assigned_at,
+          picked_up_at: delivery.picked_up_at,
+          delivered_at: delivery.delivered_at,
+        };
+      }
+    } catch (deliveryError) {
+      // If delivery_assignments table doesn't exist yet, ignore the error
+      console.log('Delivery assignment query failed (table might not exist yet):', deliveryError);
+    }
+
+    return NextResponse.json({ 
+      salesOrder: {
+        ...order,
+        deliveryAssignment
+      }
+    });
   } catch (error: any) {
     logDatabaseError('Fetching sales order', error);
     const dbError = handleDatabaseError(error);

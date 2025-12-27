@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Icons } from '@/components/ui/icons';
 import { getAuthToken } from '@/lib/utils/token';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
+  const [showLoader, setShowLoader] = useState(true);
   const [stats, setStats] = useState({
     totalProducts: 0,
     activeProducts: 0,
@@ -15,7 +17,14 @@ export default function DashboardPage() {
   });
 
   useEffect(() => {
+    // Show loader for 5 seconds
+    const loaderTimer = setTimeout(() => {
+      setShowLoader(false);
+    }, 5000);
+
     fetchDashboardData();
+
+    return () => clearTimeout(loaderTimer);
   }, []);
 
   const fetchDashboardData = async () => {
@@ -47,7 +56,108 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="p-6">
+    <>
+      <AnimatePresence>
+        {showLoader && (
+          <motion.div
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.5 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-blue-600 via-purple-600 to-pink-500"
+          >
+            <div className="text-center">
+              {/* Animated Logo */}
+              <motion.div
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ 
+                  type: "spring",
+                  stiffness: 260,
+                  damping: 20,
+                  delay: 0.2
+                }}
+                className="mb-8"
+              >
+                <div className="w-32 h-32 bg-white rounded-3xl shadow-2xl flex items-center justify-center mx-auto">
+                  <motion.div
+                    animate={{ 
+                      rotate: [0, 360],
+                      scale: [1, 1.1, 1]
+                    }}
+                    transition={{ 
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                  >
+                    <Icons.Inventory className="text-blue-600" size={64} />
+                  </motion.div>
+                </div>
+              </motion.div>
+
+              {/* Company Name */}
+              <motion.h1
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="text-5xl font-bold text-white mb-4"
+              >
+                ERP System
+              </motion.h1>
+
+              {/* Tagline */}
+              <motion.p
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.7 }}
+                className="text-xl text-white/90 mb-8"
+              >
+                Enterprise Resource Planning
+              </motion.p>
+
+              {/* Loading Animation */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1 }}
+                className="flex justify-center gap-2"
+              >
+                {[0, 1, 2].map((i) => (
+                  <motion.div
+                    key={i}
+                    animate={{
+                      y: [0, -20, 0],
+                    }}
+                    transition={{
+                      duration: 0.6,
+                      repeat: Infinity,
+                      delay: i * 0.2,
+                    }}
+                    className="w-3 h-3 bg-white rounded-full"
+                  />
+                ))}
+              </motion.div>
+
+              {/* Loading Text */}
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.2 }}
+                className="text-white/80 mt-6 text-sm"
+              >
+                Loading your workspace...
+              </motion.p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: showLoader ? 0 : 1 }}
+        transition={{ duration: 0.5 }}
+        className="p-6"
+      >
       {/* Page Title */}
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-gray-900 mb-1">Dashboard</h2>
@@ -235,6 +345,7 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
+    </>
   );
 }

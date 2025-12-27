@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getAuthToken } from '@/lib/utils/token';
 import InvoiceModal from '@/components/modal/InvoiceModal';
+import SalesInvoiceViewModal from '@/components/modal/SalesInvoiceViewModal';
 
 interface Invoice {
   id: string;
@@ -27,6 +28,8 @@ export default function InvoicesPage() {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [invoiceDetails, setInvoiceDetails] = useState<any>(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const itemsPerPage = 15;
 
   const toggleExpand = async (invoiceId: string) => {
@@ -97,6 +100,48 @@ export default function InvoicesPage() {
 
   const calculateBalance = (total: string, paid: string) => {
     return (parseFloat(total) - parseFloat(paid || '0')).toFixed(2);
+  };
+
+  const handleViewInvoice = async (invoiceId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const token = getAuthToken();
+    try {
+      const response = await fetch(`/api/erp/sales/invoices/${invoiceId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedInvoice(data);
+        setShowViewModal(true);
+      } else {
+        console.error('Failed to fetch invoice:', await response.text());
+        alert('Failed to load invoice details');
+      }
+    } catch (error) {
+      console.error('Error fetching invoice details:', error);
+      alert('Error loading invoice details');
+    }
+  };
+
+  const handleEditInvoice = async (invoiceId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const token = getAuthToken();
+    try {
+      const response = await fetch(`/api/erp/sales/invoices/${invoiceId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedInvoice(data);
+        setShowInvoiceModal(true);
+      } else {
+        console.error('Failed to fetch invoice:', await response.text());
+        alert('Failed to load invoice for editing');
+      }
+    } catch (error) {
+      console.error('Error fetching invoice:', error);
+      alert('Error loading invoice');
+    }
   };
 
   if (loading) {
@@ -239,8 +284,8 @@ export default function InvoicesPage() {
                 </tr>
               ) : (
                 invoices.map((invoice) => (
-                  <>
-                    <tr key={invoice.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => toggleExpand(invoice.id)}>
+                  <React.Fragment key={invoice.id}>
+                    <tr className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => toggleExpand(invoice.id)}>
                       <td className="px-6 py-4 whitespace-nowrap font-medium text-blue-600">
                         <div className="flex items-center gap-2">
                           <span>{expandedRow === invoice.id ? '▼' : '▶'}</span>
@@ -270,11 +315,17 @@ export default function InvoicesPage() {
                           {invoice.status.toUpperCase()}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm" onClick={(e) => e.stopPropagation()}>
-                        <button className="text-blue-600 hover:text-blue-800 font-medium mr-3">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <button 
+                          onClick={(e) => handleViewInvoice(invoice.id, e)}
+                          className="text-blue-600 hover:text-blue-800 font-medium mr-3"
+                        >
                           View
                         </button>
-                        <button className="text-gray-600 hover:text-gray-800 font-medium">
+                        <button 
+                          onClick={(e) => handleEditInvoice(invoice.id, e)}
+                          className="text-gray-600 hover:text-gray-800 font-medium"
+                        >
                           Edit
                         </button>
                       </td>
@@ -331,7 +382,7 @@ export default function InvoicesPage() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 ))
               )}
             </tbody>
@@ -363,6 +414,38 @@ export default function InvoicesPage() {
           </div>
         )}
       </div>
+
+      {/* View Modal */}
+      <SalesInvoiceViewModal
+        isOpen={showViewModal}
+        invoice={selectedInvoice}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedInvoice(null);
+        }}
+        onEdit={() => {
+          setShowViewModal(false);
+          setShowInvoiceModal(true);
+        }}
+        onUpdate={() => {
+          fetchInvoices();
+        }}
+      />
+
+      {/* Edit/Create Modal */}
+      <InvoiceModal
+        isOpen={showInvoiceModal}
+        onClose={() => {
+          setShowInvoiceModal(false);
+          setSelectedInvoice(null);
+        }}
+        onSuccess={() => {
+          setShowInvoiceModal(false);
+          setSelectedInvoice(null);
+          fetchInvoices();
+        }}
+        editInvoice={selectedInvoice}
+      />
     </div>
   );
 }

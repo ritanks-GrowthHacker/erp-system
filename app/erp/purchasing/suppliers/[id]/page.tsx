@@ -740,35 +740,67 @@ export default function SupplierDetailPage() {
             </TableHeader>
             <TableBody>
               {rfqs.map((rfq) => (
-                <TableRow key={rfq.id} className="hover:bg-blue-50 cursor-pointer transition-colors">
-                  <TableCell className="font-medium text-gray-900">{rfq.rfqNumber}</TableCell>
-                  <TableCell className="text-sm">{new Date(rfq.rfqDate).toLocaleDateString()}</TableCell>
-                  <TableCell className="text-sm">{rfq.title}</TableCell>
-                  <TableCell className="text-sm">
-                    {rfq.deadlineDate ? new Date(rfq.deadlineDate).toLocaleDateString() : '—'}
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                        rfq.status
-                      )}`}
-                    >
-                      {rfq.status.replace('_', ' ').toUpperCase()}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <button
-                      onClick={() => toggleRow(rfq.id)}
-                      className="inline-flex items-center justify-center w-8 h-8 rounded hover:bg-gray-100 transition-colors"
-                    >
-                      <ChevronDown
-                        className={`w-5 h-5 text-gray-600 transition-transform ${
-                          expandedRows.has(rfq.id) ? 'rotate-180' : ''
-                        }`}
-                      />
-                    </button>
-                  </TableCell>
-                </TableRow>
+                <React.Fragment key={rfq.id}>
+                  <TableRow className="hover:bg-blue-50 cursor-pointer transition-colors">
+                    <TableCell className="font-medium text-gray-900">{rfq.rfqNumber}</TableCell>
+                    <TableCell className="text-sm">{new Date(rfq.rfqDate).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-sm">{rfq.title}</TableCell>
+                    <TableCell className="text-sm">
+                      {rfq.deadlineDate ? new Date(rfq.deadlineDate).toLocaleDateString() : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                          rfq.status
+                        )}`}
+                      >
+                        {rfq.status.replace('_', ' ').toUpperCase()}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <button
+                        onClick={() => toggleRow(rfq.id)}
+                        className="inline-flex items-center justify-center w-8 h-8 rounded hover:bg-gray-100 transition-colors"
+                      >
+                        <ChevronDown
+                          className={`w-5 h-5 text-gray-600 transition-transform ${
+                            expandedRows.has(rfq.id) ? 'rotate-180' : ''
+                          }`}
+                        />
+                      </button>
+                    </TableCell>
+                  </TableRow>
+                  {expandedRows.has(rfq.id) && (
+                    <TableRow className="bg-gray-50">
+                      <TableCell colSpan={6} className="p-6">
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-3 gap-4">
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">RFQ Number</div>
+                              <div className="font-semibold text-gray-900">{rfq.rfqNumber}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">RFQ Date</div>
+                              <div className="font-medium text-gray-900">
+                                {new Date(rfq.rfqDate).toLocaleDateString()}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">Deadline</div>
+                              <div className="font-medium text-gray-900">
+                                {rfq.deadlineDate ? new Date(rfq.deadlineDate).toLocaleDateString() : '—'}
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Title</div>
+                            <div className="font-medium text-gray-900">{rfq.title}</div>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
               ))}
             </TableBody>
           </Table>
@@ -927,39 +959,85 @@ export default function SupplierDetailPage() {
                 const status = invoice.status || invoice.payment_status || 'draft';
                 
                 return (
-                  <TableRow key={invoice.id} className="hover:bg-blue-50 cursor-pointer transition-colors">
-                    <TableCell className="font-medium text-gray-900">{invoiceNumber}</TableCell>
-                    <TableCell className="text-sm">
-                      {invoiceDate ? new Date(invoiceDate).toLocaleDateString() : '-'}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {dueDate ? new Date(dueDate).toLocaleDateString() : '-'}
-                    </TableCell>
-                    <TableCell className="font-semibold text-gray-900 text-sm">
-                      ₹{parseFloat(totalAmount).toLocaleString('en-IN')}
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                          status
-                        )}`}
-                      >
-                        {status.toUpperCase()}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <button
-                        onClick={() => toggleRow(invoice.id)}
-                        className="inline-flex items-center justify-center w-8 h-8 rounded hover:bg-gray-100 transition-colors"
-                      >
-                        <ChevronDown
-                          className={`w-5 h-5 text-gray-600 transition-transform ${
-                            expandedRows.has(invoice.id) ? 'rotate-180' : ''
-                          }`}
-                        />
-                      </button>
-                    </TableCell>
-                  </TableRow>
+                  <React.Fragment key={invoice.id}>
+                    <TableRow className="hover:bg-blue-50 cursor-pointer transition-colors">
+                      <TableCell className="font-medium text-gray-900">{invoiceNumber}</TableCell>
+                      <TableCell className="text-sm">
+                        {invoiceDate ? new Date(invoiceDate).toLocaleDateString() : '-'}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {dueDate ? new Date(dueDate).toLocaleDateString() : '-'}
+                      </TableCell>
+                      <TableCell className="font-semibold text-gray-900 text-sm">
+                        ₹{parseFloat(totalAmount).toLocaleString('en-IN')}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                            status
+                          )}`}
+                        >
+                          {status.toUpperCase()}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <button
+                          onClick={() => toggleRow(invoice.id)}
+                          className="inline-flex items-center justify-center w-8 h-8 rounded hover:bg-gray-100 transition-colors"
+                        >
+                          <ChevronDown
+                            className={`w-5 h-5 text-gray-600 transition-transform ${
+                              expandedRows.has(invoice.id) ? 'rotate-180' : ''
+                            }`}
+                          />
+                        </button>
+                      </TableCell>
+                    </TableRow>
+                    {expandedRows.has(invoice.id) && (
+                      <TableRow className="bg-gray-50">
+                        <TableCell colSpan={6} className="p-6">
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-3 gap-4">
+                              <div>
+                                <div className="text-xs text-gray-500 mb-1">Invoice Number</div>
+                                <div className="font-semibold text-gray-900">{invoiceNumber}</div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-gray-500 mb-1">Invoice Date</div>
+                                <div className="font-medium text-gray-900">
+                                  {invoiceDate ? new Date(invoiceDate).toLocaleDateString() : '-'}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-gray-500 mb-1">Due Date</div>
+                                <div className="font-medium text-gray-900">
+                                  {dueDate ? new Date(dueDate).toLocaleDateString() : '-'}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <div className="text-xs text-gray-500 mb-1">Total Amount</div>
+                                <div className="font-semibold text-gray-900 text-lg">
+                                  ₹{parseFloat(totalAmount).toLocaleString('en-IN')}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-gray-500 mb-1">Payment Status</div>
+                                <span
+                                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                                    status
+                                  )}`}
+                                >
+                                  {status.toUpperCase()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
                 );
               })}
             </TableBody>

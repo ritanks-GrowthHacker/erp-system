@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Package, TrendingUp, AlertTriangle, CheckCircle, Clock, Activity, Gauge, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { getAuthToken } from '@/lib/utils/token';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface DashboardStats {
   activeOrders: number;
@@ -41,12 +42,18 @@ interface Alert {
 }
 
 export default function ManufacturingDashboard() {
+  const [showLoader, setShowLoader] = useState(true);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [workCenters, setWorkCenters] = useState<WorkCenterStatus[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowLoader(false), 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     fetchDashboardData();
@@ -182,25 +189,95 @@ export default function ManufacturingDashboard() {
   if (!stats) return null;
 
   return (
-    <div className="p-6">
-      {/* Header with Tabs */}
-      <div className="mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <h2 className="text-2xl font-semibold text-gray-900">Manufacturing</h2>
-            <p className="text-sm text-gray-500 mt-1">Real-time production overview and KPIs</p>
-          </div>
-        </div>
+    <div className="relative min-h-screen">
+      <AnimatePresence>
+        {showLoader && (
+          <motion.div
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-purple-600 via-violet-600 to-fuchsia-600"
+          >
+            <div className="text-center">
+              <motion.div
+                animate={{ 
+                  rotate: [0, 360],
+                  scale: [1, 1.05, 1]
+                }}
+                transition={{ 
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: "linear"
+                }}
+                className="mb-8 inline-block p-8 bg-white rounded-2xl shadow-2xl"
+              >
+                <Activity className="text-purple-600" size={64} />
+              </motion.div>
+              
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="text-4xl font-bold text-white mb-2"
+              >
+                Manufacturing
+              </motion.h1>
+              
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="text-purple-100 text-lg mb-8"
+              >
+                Loading production data...
+              </motion.p>
 
-        {/* Tab Navigation */}
-        <div className="flex gap-2 border-b border-gray-200">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors ${
-              activeTab === 'dashboard'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-            }`}
+              <div className="flex items-center justify-center space-x-2">
+                <motion.div
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+                  className="w-3 h-3 bg-white rounded-full"
+                />
+                <motion.div
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
+                  className="w-3 h-3 bg-white rounded-full"
+                />
+                <motion.div
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
+                  className="w-3 h-3 bg-white rounded-full"
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: showLoader ? 0 : 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="p-6">
+          {/* Header with Tabs */}
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h2 className="text-2xl font-semibold text-gray-900">Manufacturing</h2>
+                <p className="text-sm text-gray-500 mt-1">Real-time production overview and KPIs</p>
+              </div>
+            </div>
+
+            {/* Tab Navigation */}
+            <div className="flex gap-2 border-b border-gray-200">
+              <button
+                onClick={() => setActiveTab('dashboard')}
+                className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors ${
+                  activeTab === 'dashboard'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                }`}
           >
             Dashboard
           </button>
@@ -514,6 +591,8 @@ export default function ManufacturingDashboard() {
           </div>
         </div>
       )}
+    </div>
+      </motion.div>
     </div>
   );
 }

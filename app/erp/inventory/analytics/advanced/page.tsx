@@ -8,10 +8,10 @@ import { Pie } from 'react-chartjs-2';
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 interface TopCustomer {
-  customerId: string;
-  customerName: string;
-  totalDeliveries: number;
-  totalValue: string;
+  customer_id: string;
+  customer_name: string;
+  total_deliveries: number;
+  total_value: string;
 }
 
 interface WarehousePerformance {
@@ -63,47 +63,29 @@ export default function AdvancedAnalyticsPage() {
       setLoading(true);
 
       // Fetch real data from API
-      const response = await fetch('/api/erp/inventory/analytics', {
+      const response = await fetch('/api/erp/inventory/analytics/advanced?type=overview', {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (response.ok) {
         const data = await response.json();
+        console.log('Advanced analytics data:', data);
         
-        // Set real customer data (mock for now since API doesn't have this yet)
-        setTopCustomers([
-          {
-            customerId: '1',
-            customerName: 'ABC Corporation',
-            totalDeliveries: 45,
-            totalValue: '125000.00',
-          },
-          {
-            customerId: '2',
-            customerName: 'XYZ Ltd',
-            totalDeliveries: 38,
-            totalValue: '98500.00',
-          },
-          {
-            customerId: '3',
-            customerName: 'Global Trading Co',
-            totalDeliveries: 32,
-            totalValue: '87200.00',
-          },
-        ]);
+        // Set real customer data from API
+        setTopCustomers(data.topCustomers || []);
 
         // Set warehouse data from API
         const warehouses = data.warehouseStock || [];
         if (warehouses.length > 0) {
           const topWarehouse = warehouses[0];
           setWarehousePerformance({
-            warehouseId: topWarehouse.warehouseId || '1',
-            warehouseName: topWarehouse.warehouseName || 'Main Warehouse',
-            totalDeliveries: 156,
+            warehouseId: topWarehouse.warehouse_id || '1',
+            warehouseName: topWarehouse.warehouse_name || 'Main Warehouse',
+            totalDeliveries: parseInt(topWarehouse.product_count || '0'),
             topProducts: data.topProducts?.slice(0, 10).map((p: any) => ({
               productName: p.name,
               deliveryCount: Math.floor(Math.random() * 50) + 10,
-              totalQuantity: p.totalQuantity || '100',
+              totalQuantity: p.total_quantity || '100',
             })) || [],
           });
         }
@@ -144,10 +126,11 @@ export default function AdvancedAnalyticsPage() {
           setTurnoverData(
             products.slice(0, 10).map((p: any) => {
               const cogs = parseFloat(p.value || '0');
-              const avgInv = cogs / (Math.random() * 5 + 2);
+              const avgInv = cogs > 0 ? cogs / (Math.random() * 5 + 2) : 1;
+              const turnoverRate = avgInv > 0 ? cogs / avgInv : 0;
               return {
                 productName: p.name,
-                turnoverRate: cogs / avgInv,
+                turnoverRate: isNaN(turnoverRate) ? 0 : turnoverRate,
                 cogs: cogs.toString(),
                 avgInventory: avgInv.toFixed(2),
               };
@@ -241,7 +224,7 @@ export default function AdvancedAnalyticsPage() {
             <div className="space-y-3">
               {paginatedCustomers.map((customer, index) => (
                 <div
-                  key={customer.customerId}
+                  key={customer.customer_id || index}
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                 >
                   <div className="flex items-center gap-3">
@@ -249,12 +232,12 @@ export default function AdvancedAnalyticsPage() {
                       {(customerPage - 1) * customersPerPage + index + 1}
                     </div>
                     <div>
-                      <div className="font-medium text-gray-900">{customer.customerName}</div>
-                      <div className="text-sm text-gray-500">{customer.totalDeliveries} deliveries</div>
+                      <div className="font-medium text-gray-900">{customer.customer_name}</div>
+                      <div className="text-sm text-gray-500">{customer.total_deliveries} deliveries</div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-semibold text-gray-900">${parseFloat(customer.totalValue).toLocaleString()}</div>
+                    <div className="font-semibold text-gray-900">₹{parseFloat(customer.total_value || '0').toLocaleString('en-IN')}</div>
                     <div className="text-xs text-gray-500">Total Value</div>
                   </div>
                 </div>

@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getAuthToken } from '@/lib/utils/token';
 import { RefreshCw } from 'lucide-react';
+import { useAlert } from '@/components/common/CustomAlert';
 
 interface Product {
   id: string;
@@ -16,6 +17,7 @@ interface QualityCheckFormModalProps {
 }
 
 export default function QualityCheckFormModal({ isOpen, onClose, onSuccess }: QualityCheckFormModalProps) {
+  const { showAlert } = useAlert();
   const [searchTerm, setSearchTerm] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -23,6 +25,7 @@ export default function QualityCheckFormModal({ isOpen, onClose, onSuccess }: Qu
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [generatingBatch, setGeneratingBatch] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -41,9 +44,18 @@ export default function QualityCheckFormModal({ isOpen, onClose, onSuccess }: Qu
   useEffect(() => {
     if (isOpen) {
       generateQCNumber();
+      generateBatchNumber();
       setInspectionDate(new Date().toISOString().split('T')[0]);
     }
   }, [isOpen]);
+
+  // Auto-calculate rejected quantity
+  useEffect(() => {
+    const inspected = parseInt(quantityInspected) || 0;
+    const accepted = parseInt(quantityAccepted) || 0;
+    const rejected = Math.max(0, inspected - accepted);
+    setQuantityRejected(rejected.toString());
+  }, [quantityInspected, quantityAccepted]);
 
   // Debounced product search
   useEffect(() => {
@@ -100,6 +112,14 @@ export default function QualityCheckFormModal({ isOpen, onClose, onSuccess }: Qu
     setGenerating(false);
   };
 
+  const generateBatchNumber = async () => {
+    setGeneratingBatch(true);
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 1000);
+    setBatchNumber(`BATCH-${timestamp}-${random}`);
+    setGeneratingBatch(false);
+  };
+
   const handleProductSelect = (product: Product) => {
     setSelectedProduct(product);
     setSearchTerm('');
@@ -121,18 +141,18 @@ export default function QualityCheckFormModal({ isOpen, onClose, onSuccess }: Qu
     e.preventDefault();
     
     if (!selectedProduct) {
-      alert('Please select a product');
+      showAlert({ type: 'error', title: 'Validation Error', message: 'Please select a product' });
       return;
     }
 
     if (!qcNumber) {
-      alert('QC Number is required');
+      showAlert({ type: 'error', title: 'Validation Error', message: 'QC Number is required' });
       return;
     }
 
     const token = getAuthToken();
     if (!token) {
-      alert('No authentication token found');
+      showAlert({ type: 'error', title: 'Authentication Error', message: 'No authentication token found' });
       return;
     }
 
@@ -161,17 +181,17 @@ export default function QualityCheckFormModal({ isOpen, onClose, onSuccess }: Qu
       });
 
       if (response.ok) {
-        alert('Quality Check created successfully!');
+        showAlert({ type: 'success', title: 'Success', message: 'Quality Check created successfully!' });
         onSuccess();
         resetForm();
         onClose();
       } else {
         const error = await response.json();
-        alert(`Failed to create Quality Check: ${error.error || 'Unknown error'}`);
+        showAlert({ type: 'error', title: 'Error', message: `Failed to create Quality Check: ${error.error || 'Unknown error'}` });
       }
     } catch (error) {
       console.error('Error creating Quality Check:', error);
-      alert('Failed to create Quality Check. Please try again.');
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to create Quality Check. Please try again.' });
     } finally {
       setSubmitting(false);
     }
@@ -355,13 +375,23 @@ export default function QualityCheckFormModal({ isOpen, onClose, onSuccess }: Qu
               <label className="block text-sm font-semibold text-slate-700 mb-2">
                 Batch Number
               </label>
-              <input
-                type="text"
-                value={batchNumber}
-                onChange={(e) => setBatchNumber(e.target.value)}
-                className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                placeholder="BATCH-2024-001"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={batchNumber}
+                  onChange={(e) => setBatchNumber(e.target.value)}
+                  className="flex-1 px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  placeholder="BATCH-2024-001"
+                />
+                <button
+                  type="button"
+                  onClick={generateBatchNumber}
+                  disabled={generatingBatch}
+                  className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+                >
+                  <RefreshCw size={16} className={generatingBatch ? 'animate-spin' : ''} />
+                </button>
+              </div>
             </div>
 
             <div>
@@ -411,13 +441,13 @@ export default function QualityCheckFormModal({ isOpen, onClose, onSuccess }: Qu
 
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Quantity Rejected
+                Quantity Rejected (Auto)
               </label>
               <input
                 type="number"
                 value={quantityRejected}
-                onChange={(e) => setQuantityRejected(e.target.value)}
-                className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                readOnly
+                className="w-full px-4 py-3 border border-slate-200 rounded-lg bg-slate-50 text-slate-600 cursor-not-allowed"
                 placeholder="0"
               />
             </div>

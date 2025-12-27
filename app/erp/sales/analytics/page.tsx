@@ -4,27 +4,45 @@ import { useState, useEffect } from 'react';
 import { getAuthToken } from '@/lib/utils/token';
 
 interface AnalyticsData {
-  revenue: {
-    total: number;
-    growth: number;
-    byMonth: { month: string; revenue: number }[];
+  orderSummary: {
+    total_orders: number;
+    draft_count: number;
+    confirmed_count: number;
+    in_progress_count: number;
+    completed_count: number;
+    cancelled_count: number;
+    total_sales_value: string;
+    avg_order_value: string;
   };
-  orders: {
-    total: number;
-    growth: number;
-    avgOrderValue: number;
+  invoiceSummary: {
+    total_invoices: number;
+    draft_count: number;
+    sent_count: number;
+    paid_count: number;
+    total_invoice_value: string;
+    total_paid: string;
+    total_outstanding: string;
   };
   topCustomers: Array<{
     id: string;
     name: string;
-    totalOrders: number;
-    totalRevenue: number;
+    code: string;
+    total_orders: number;
+    total_sales_value: string;
+    completed_orders: number;
   }>;
   topProducts: Array<{
     id: string;
     name: string;
-    unitsSold: number;
-    revenue: number;
+    sku: string;
+    order_count: number;
+    total_quantity: string;
+    total_value: string;
+  }>;
+  salesTrends: Array<{
+    month: string;
+    order_count: number;
+    total_value: string;
   }>;
 }
 
@@ -52,6 +70,7 @@ export default function SalesAnalyticsPage() {
 
       if (response.ok) {
         const analyticsData = await response.json();
+        console.log('Analytics data:', analyticsData);
         setData(analyticsData);
       }
     } catch (error) {
@@ -98,160 +117,215 @@ export default function SalesAnalyticsPage() {
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm font-medium text-gray-600">Total Revenue</div>
-            {data?.revenue?.growth !== undefined && (
-              <div className={`text-xs font-semibold ${data.revenue.growth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {data.revenue.growth >= 0 ? '↑' : '↓'} {Math.abs(data.revenue.growth).toFixed(1)}%
-              </div>
-            )}
-          </div>
+          <div className="text-sm font-medium text-gray-600 mb-2">Total Revenue</div>
           <div className="text-3xl font-bold text-gray-900">
-            ₹{data?.revenue?.total?.toLocaleString('en-IN') || '0'}
+            ₹{parseFloat(data?.orderSummary?.total_sales_value || '0').toLocaleString('en-IN')}
+          </div>
+          <div className="text-xs text-gray-500 mt-2">
+            From {data?.orderSummary?.total_orders || 0} orders
           </div>
         </div>
 
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm font-medium text-gray-600">Total Orders</div>
-            {data?.orders?.growth !== undefined && (
-              <div className={`text-xs font-semibold ${data.orders.growth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {data.orders.growth >= 0 ? '↑' : '↓'} {Math.abs(data.orders.growth).toFixed(1)}%
-              </div>
-            )}
-          </div>
+          <div className="text-sm font-medium text-gray-600 mb-2">Total Orders</div>
           <div className="text-3xl font-bold text-gray-900">
-            {data?.orders?.total?.toLocaleString('en-IN') || '0'}
+            {data?.orderSummary?.total_orders || 0}
+          </div>
+          <div className="text-xs text-gray-500 mt-2">
+            {data?.orderSummary?.completed_count || 0} completed
           </div>
         </div>
 
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="text-sm font-medium text-gray-600 mb-2">Avg Order Value</div>
           <div className="text-3xl font-bold text-gray-900">
-           ₹{(data?.orders?.avgOrderValue || 0).toLocaleString('en-IN')}
+           ₹{parseFloat(data?.orderSummary?.avg_order_value || '0').toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </div>
         </div>
 
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="text-sm font-medium text-gray-600 mb-2">Conversion Rate</div>
+          <div className="text-sm font-medium text-gray-600 mb-2">Total Invoices</div>
           <div className="text-3xl font-bold text-gray-900">
-            {(((data?.orders?.total || 0) / ((data?.orders?.total || 0) + 100)) * 100).toFixed(1)}%
+            {data?.invoiceSummary?.total_invoices || 0}
+          </div>
+          <div className="text-xs text-gray-500 mt-2">
+            {data?.invoiceSummary?.paid_count || 0} paid
+          </div>
+        </div>
+      </div>
+
+      {/* Order Status Breakdown */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Status</h2>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-gray-900">{data?.orderSummary?.draft_count || 0}</div>
+            <div className="text-xs text-gray-500 mt-1">Draft</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-blue-600">{data?.orderSummary?.confirmed_count || 0}</div>
+            <div className="text-xs text-gray-500 mt-1">Confirmed</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-yellow-600">{data?.orderSummary?.in_progress_count || 0}</div>
+            <div className="text-xs text-gray-500 mt-1">In Progress</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-green-600">{data?.orderSummary?.completed_count || 0}</div>
+            <div className="text-xs text-gray-500 mt-1">Completed</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-red-600">{data?.orderSummary?.cancelled_count || 0}</div>
+            <div className="text-xs text-gray-500 mt-1">Cancelled</div>
           </div>
         </div>
       </div>
 
       {/* Revenue Trend */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Revenue Trend</h2>
-        <div className="space-y-3">
-        {(data?.revenue?.byMonth || []).map((item, index) => (
-            <div key={index} className="flex items-center gap-4">
-              <div className="w-24 text-sm font-medium text-gray-600">{item.month}</div>
-              <div className="flex-1 bg-gray-100 rounded-full h-8 relative overflow-hidden">
-                <div
-                  className="bg-blue-600 h-full rounded-full transition-all"
-                  style={{
-                   width: `${(item.revenue / Math.max(...(data?.revenue?.byMonth || []).map(m => m.revenue), 1)) * 100}%`
-                  }}
-                />
-              </div>
-              <div className="w-32 text-sm font-semibold text-gray-900 text-right">
-                ₹{item.revenue.toLocaleString('en-IN')}
-              </div>
-            </div>
-          ))}
+      {data?.salesTrends && data.salesTrends.length > 0 && (
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Revenue Trend (Last 12 Months)</h2>
+          <div className="space-y-3">
+            {data.salesTrends.map((item, index) => {
+              const maxValue = Math.max(...data.salesTrends.map(m => parseFloat(m.total_value)), 1);
+              return (
+                <div key={index} className="flex items-center gap-4">
+                  <div className="w-24 text-sm font-medium text-gray-600">{item.month}</div>
+                  <div className="flex-1 bg-gray-100 rounded-full h-8 relative overflow-hidden">
+                    <div
+                      className="bg-blue-600 h-full rounded-full transition-all"
+                      style={{
+                        width: `${(parseFloat(item.total_value) / maxValue) * 100}%`
+                      }}
+                    />
+                  </div>
+                  <div className="w-32 text-sm font-semibold text-gray-900 text-right">
+                    ₹{parseFloat(item.total_value).toLocaleString('en-IN')}
+                  </div>
+                  <div className="w-20 text-xs text-gray-500 text-right">
+                    {item.order_count} orders
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Top Customers */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Top Customers</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                  Customer
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                  Orders
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                  Revenue
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                  Avg Order
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {data.topCustomers.slice(0, 15).map((customer) => (
-                <tr key={customer.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                    {customer.name}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">
-                    {customer.totalOrders}
-                  </td>
-                  <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                   ₹{((customer.totalRevenue || 0) / (customer.totalOrders || 1)).toLocaleString('en-IN')}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">
-                   ₹{((customer.totalRevenue || 0) / (customer.totalOrders || 1)).toLocaleString('en-IN')}
-                  </td>
+      {data?.topCustomers && data.topCustomers.length > 0 && (
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">Top Customers</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                    Customer
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                    Code
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">
+                    Orders
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">
+                    Revenue
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">
+                    Avg Order
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {data.topCustomers.map((customer) => {
+                  const totalValue = parseFloat(customer.total_sales_value || '0');
+                  const avgOrder = totalValue / (customer.total_orders || 1);
+                  return (
+                    <tr key={customer.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                        {customer.name}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500">
+                        {customer.code}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700 text-right">
+                        {customer.total_orders}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-semibold text-gray-900 text-right">
+                        ₹{totalValue.toLocaleString('en-IN')}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700 text-right">
+                        ₹{avgOrder.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Top Products */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Top Products</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                  Product
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                  Units Sold
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                  Revenue
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                  Avg Price
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {data.topProducts.slice(0, 15).map((product) => (
-                <tr key={product.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                    {product.name}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">
-                    {product.unitsSold}
-                  </td>
-                  <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                    ₹{product.revenue.toLocaleString('en-IN')}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">
-                    ₹{(product.revenue / product.unitsSold).toLocaleString('en-IN')}
-                  </td>
+      {data?.topProducts && data.topProducts.length > 0 && (
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">Top Products</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                    Product
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                    SKU
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">
+                    Quantity Sold
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">
+                    Revenue
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">
+                    Avg Price
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {data.topProducts.map((product) => {
+                  const totalValue = parseFloat(product.total_value || '0');
+                  const quantity = parseFloat(product.total_quantity || '0');
+                  const avgPrice = quantity > 0 ? totalValue / quantity : 0;
+                  return (
+                    <tr key={product.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                        {product.name}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500">
+                        {product.sku}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700 text-right">
+                        {quantity.toLocaleString('en-IN')}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-semibold text-gray-900 text-right">
+                        ₹{totalValue.toLocaleString('en-IN')}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700 text-right">
+                        ₹{avgPrice.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

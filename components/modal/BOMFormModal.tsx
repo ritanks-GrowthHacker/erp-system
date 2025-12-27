@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import { getAuthToken } from '@/lib/utils/token';
+import { useAlert } from '@/components/common/CustomAlert';
 import { RefreshCw } from 'lucide-react';
 
 interface Product {
@@ -16,6 +17,7 @@ interface BOMFormModalProps {
 }
 
 export default function BOMFormModal({ isOpen, onClose, onSuccess }: BOMFormModalProps) {
+  const { showAlert } = useAlert();
   const [searchTerm, setSearchTerm] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -117,18 +119,18 @@ export default function BOMFormModal({ isOpen, onClose, onSuccess }: BOMFormModa
     e.preventDefault();
     
     if (!selectedProduct) {
-      alert('Please select a product');
+      showAlert({ type: 'error', title: 'Validation Error', message: 'Please select a product' });
       return;
     }
 
     if (!bomNumber) {
-      alert('BOM Number is required');
+      showAlert({ type: 'error', title: 'Validation Error', message: 'BOM Number is required' });
       return;
     }
 
     const token = getAuthToken();
     if (!token) {
-      alert('No authentication token found');
+      showAlert({ type: 'error', title: 'Error', message: 'No authentication token found' });
       return;
     }
 
@@ -155,17 +157,17 @@ export default function BOMFormModal({ isOpen, onClose, onSuccess }: BOMFormModa
       });
 
       if (response.ok) {
-        alert('BOM created successfully!');
+        showAlert({ type: 'success', title: 'Success', message: 'BOM created successfully!' });
         onSuccess();
         resetForm();
         onClose();
       } else {
         const error = await response.json();
-        alert(`Failed to create BOM: ${error.error || 'Unknown error'}`);
+        showAlert({ type: 'error', title: 'Error', message: `Failed to create BOM: ${error.error || 'Unknown error'}` });
       }
     } catch (error) {
       console.error('Error creating BOM:', error);
-      alert('Failed to create BOM. Please try again.');
+      showAlert({ type: 'error', title: 'Error', message: 'Failed to create BOM. Please try again.' });
     } finally {
       setSubmitting(false);
     }

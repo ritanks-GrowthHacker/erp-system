@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
       .where(eq(qualityChecks.erpOrganizationId, erpOrganizationId))
       .orderBy(desc(qualityChecks.createdAt));
 
-    return NextResponse.json(qcList);
+    return NextResponse.json({ qualityChecks: qcList });
   } catch (error) {
     console.error('Error fetching quality checks:', error);
     return NextResponse.json({ error: 'Failed to fetch quality checks' }, { status: 500 });
@@ -64,8 +64,17 @@ export async function POST(req: NextRequest) {
       .insert(qualityChecks)
       .values({
         erpOrganizationId,
-        ...body,
-        checkDate: new Date(body.checkDate),
+        qcNumber: body.qcNumber,
+        type: body.inspectionType || body.type,
+        productId: body.productId,
+        batchNumber: body.batchNumber,
+        sourceReference: body.sourceReference,
+        quantityChecked: body.quantityInspected || 0,
+        quantityPassed: body.quantityAccepted || 0,
+        quantityFailed: body.quantityRejected || 0,
+        status: body.status,
+        checkDate: body.checkDate || body.inspectionDate,
+        notes: body.notes,
       })
       .returning();
 

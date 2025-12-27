@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from 'drizzle-orm';
 import { verifySupplierAuth } from '@/lib/auth/supplier-auth';
+import { requireErpAccess } from '@/lib/auth';
 import { erpDb as db } from '@/lib/db';
 
 interface Params {
@@ -14,9 +15,19 @@ export async function GET(
   try {
     const { id: receiptId } = await context.params;
 
-    // Verify supplier authentication
-    const { supplier, error } = await verifySupplierAuth(request);
-    if (error) return error;
+    // Try ERP authentication first (for ERP users viewing supplier details)
+    const { user, error: erpError } = await requireErpAccess(request);
+    let supplierId: string | null = null;
+    
+    if (!erpError && user) {
+      // ERP user - no supplier filtering needed
+      supplierId = null;
+    } else {
+      // Try supplier authentication
+      const { supplier, error: supplierError } = await verifySupplierAuth(request);
+      if (supplierError) return supplierError;
+      supplierId = supplier.id;
+    }
 
     // Fetch receipt with full details
     const receiptResult = await db.execute(sql`
@@ -43,7 +54,7 @@ export async function GET(
       JOIN supplier_invoices si ON r.invoice_id = si.id
       JOIN suppliers s ON r.supplier_id = s.id
       WHERE r.id = ${receiptId}
-        AND r.supplier_id = ${supplier.id}
+        ${supplierId ? sql`AND r.supplier_id = ${supplierId}` : sql``}
     `);
 
     if (!receiptResult || Array.from(receiptResult).length === 0) {

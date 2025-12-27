@@ -9,11 +9,9 @@ interface Routing {
   routingCode: string;
   name: string;
   productId: string;
-  product: {
-    name: string;
-    sku: string;
-  };
-  isActive: boolean;
+  productName: string;
+  productSku: string;
+  status: string;
   notes: string;
   createdAt: string;
 }
@@ -109,9 +107,10 @@ export default function RoutingPage() {
           });
           if (!res.ok) throw new Error('Failed to delete routing');
           await fetchRoutings();
+          showAlert({ type: 'success', title: 'Success', message: 'Routing deleted successfully' });
         } catch (error) {
           console.error('Error deleting routing:', error);
-          alert('Failed to delete routing');
+          showAlert({ type: 'error', title: 'Error', message: 'Failed to delete routing' });
         }
       },
     });
@@ -138,8 +137,8 @@ export default function RoutingPage() {
 
   const stats = {
     total: routings.length,
-    active: routings.filter(r => r.isActive).length,
-    inactive: routings.filter(r => !r.isActive).length,
+    active: routings.filter(r => r.status === 'active').length,
+    inactive: routings.filter(r => r.status !== 'active').length,
   };
 
   return (
@@ -218,20 +217,20 @@ export default function RoutingPage() {
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900">{routing.name}</td>
                         <td className="px-6 py-4 text-sm text-gray-900">
-                          {routing.product?.name || 'N/A'}
+                          {routing.productName || 'N/A'}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600">
-                          {routing.product?.sku || 'N/A'}
+                          {routing.productSku || 'N/A'}
                         </td>
                         <td className="px-6 py-4 text-sm">
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              routing.isActive
+                              routing.status === 'active'
                                 ? 'bg-green-100 text-green-800'
                                 : 'bg-gray-100 text-gray-800'
                             }`}
                           >
-                            {routing.isActive ? 'Active' : 'Inactive'}
+                            {routing.status === 'active' ? 'Active' : 'Inactive'}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-center">

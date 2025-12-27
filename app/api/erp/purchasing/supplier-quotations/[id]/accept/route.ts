@@ -51,6 +51,15 @@ export async function POST(
         AND s.erp_organization_id = ${user.erpOrganizationId}
     `);
 
+    // Update RFQ status to 'closed' or 'received' when a quotation is accepted
+    await erpDb.execute(sql`
+      UPDATE request_for_quotations rfq
+      SET status = 'closed', updated_at = NOW()
+      FROM supplier_quotation_submissions sq
+      WHERE sq.id = ${quotationId}
+        AND rfq.id = sq.rfq_id
+    `);
+
     // Get quotation details for invoice generation
     const quotationResult = await erpDb.execute(sql`
       SELECT sq.*, s.payment_terms, s.erp_organization_id

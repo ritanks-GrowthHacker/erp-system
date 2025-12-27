@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react';
 import { getAuthToken } from '@/lib/utils/token';
 import { inputFieldDesign, modalLabels } from '@/components/modal/modalInputDesigns';
-import { X, Plus, Trash2, Package, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Plus, Trash2, Package, TrendingUp, ChevronDown, ChevronUp, Truck } from 'lucide-react';
 import { useAlert } from '@/components/common/CustomAlert';
+import AssignDeliveryModal from '@/components/modal/AssignDeliveryModal';
 import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface SalesOrder {
   id: string;
@@ -51,6 +53,7 @@ interface OrderLine {
 
 export default function SalesOrdersPage() {
   const { showAlert, showConfirm } = useAlert();
+  const [showLoader, setShowLoader] = useState(true);
   const [orders, setOrders] = useState<SalesOrder[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -64,6 +67,8 @@ export default function SalesOrdersPage() {
   const [sortBy, setSortBy] = useState('date_desc');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [orderDetails, setOrderDetails] = useState<any>(null);
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [selectedOrderForDelivery, setSelectedOrderForDelivery] = useState<any>(null);
   const itemsPerPage = 15;
   const [formData, setFormData] = useState({
     customerId: '',
@@ -74,6 +79,11 @@ export default function SalesOrdersPage() {
   });
   const [orderLines, setOrderLines] = useState<OrderLine[]>([]);
   const [selectedProduct, setSelectedProduct] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowLoader(false), 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     fetchOrders();
@@ -173,7 +183,7 @@ export default function SalesOrdersPage() {
       });
       if (response.ok) {
         const data = await response.json();
-        setOrderDetails(data);
+        setOrderDetails(data.salesOrder);
       }
     } catch (error) {
       console.error('Error fetching order details:', error);
@@ -316,6 +326,30 @@ export default function SalesOrdersPage() {
     });
   };
 
+  const handleAssignDelivery = (order: any) => {
+    // Prepare order data for delivery assignment
+    setSelectedOrderForDelivery({
+      id: order.id,
+      orderNumber: order.soNumber,
+      customerName: order.customer.name,
+      customerEmail: orderDetails?.customer?.email || '',
+      customerPhone: orderDetails?.customer?.phone || '',
+      shippingAddress: orderDetails?.shippingAddress || '',
+      warehouseAddress: orderDetails?.warehouse?.address || '',
+      warehouseName: orderDetails?.warehouse?.name || '',
+    });
+    setShowDeliveryModal(true);
+  };
+
+  const handleDeliveryAssignmentSuccess = () => {
+    setShowDeliveryModal(false);
+    setSelectedOrderForDelivery(null);
+    fetchOrders();
+    if (expandedRow) {
+      toggleExpand(expandedRow); // Refresh expanded details
+    }
+  };
+
   const resetForm = () => {
     setShowForm(false);
     setFormData({
@@ -341,19 +375,89 @@ export default function SalesOrdersPage() {
   };
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-semibold text-gray-900">Sales Orders</h2>
-          <p className="text-sm text-gray-500 mt-1">Manage customer orders and deliveries</p>
-        </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors flex items-center gap-2"
-        >
-          <Plus size={18} />
-          Create Sales Order
+    <div className="relative min-h-screen">
+      <AnimatePresence>
+        {showLoader && (
+          <motion.div
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-indigo-600 via-blue-600 to-purple-600"
+          >
+            <div className="text-center">
+              <motion.div
+                animate={{ 
+                  scale: [1, 1.1, 1],
+                  y: [0, -10, 0]
+                }}
+                transition={{ 
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+                className="mb-8 inline-block p-8 bg-white rounded-2xl shadow-2xl"
+              >
+                <TrendingUp className="text-indigo-600" size={64} />
+              </motion.div>
+              
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="text-4xl font-bold text-white mb-2"
+              >
+                Sales Orders
+              </motion.h1>
+              
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="text-indigo-100 text-lg mb-8"
+              >
+                Loading orders and customers...
+              </motion.p>
+
+              <div className="flex items-center justify-center space-x-2">
+                <motion.div
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+                  className="w-3 h-3 bg-white rounded-full"
+                />
+                <motion.div
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
+                  className="w-3 h-3 bg-white rounded-full"
+                />
+                <motion.div
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
+                  className="w-3 h-3 bg-white rounded-full"
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: showLoader ? 0 : 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h2 className="text-2xl font-semibold text-gray-900">Sales Orders</h2>
+              <p className="text-sm text-gray-500 mt-1">Manage customer orders and deliveries</p>
+            </div>
+            <button
+              onClick={() => setShowForm(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors flex items-center gap-2"
+            >
+              <Plus size={18} />
+              Create Sales Order
         </button>
       </div>
 
@@ -465,7 +569,7 @@ export default function SalesOrdersPage() {
                     <tr className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => toggleExpand(order.id)}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
                         <div className="flex items-center gap-2">
-                          {expandedRow === order.id ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                         
                           {order.soNumber}
                         </div>
                       </td>
@@ -474,7 +578,7 @@ export default function SalesOrdersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.customer.name}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.warehouse.name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">₹{parseFloat(order.totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">₹{(typeof order.totalAmount === 'string' ? parseFloat(order.totalAmount) : order.totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`inline-flex px-2 py-1 text-xs font-medium rounded-full capitalize ${getStatusColor(
@@ -485,7 +589,7 @@ export default function SalesOrdersPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className="text-gray-500 text-xs">Click to expand</span>
+                        {expandedRow === order.id ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
                       </td>
                     </tr>
                     {expandedRow === order.id && orderDetails && (
@@ -517,27 +621,79 @@ export default function SalesOrdersPage() {
                                     <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700">Product</th>
                                     <th className="px-4 py-2 text-right text-xs font-semibold text-gray-700">Qty</th>
                                     <th className="px-4 py-2 text-right text-xs font-semibold text-gray-700">Unit Price</th>
-                                    <th className="px-4 py-2 text-right text-xs font-semibold text-gray-700">Discount</th>
                                     <th className="px-4 py-2 text-right text-xs font-semibold text-gray-700">Tax</th>
                                     <th className="px-4 py-2 text-right text-xs font-semibold text-gray-700">Total</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y">
-                                  {orderDetails.lines?.map((line: any, idx: number) => (
-                                    <tr key={idx} className="bg-white">
-                                      <td className="px-4 py-2 text-sm">{line.product?.name || 'N/A'}</td>
-                                      <td className="px-4 py-2 text-sm text-right">{line.quantity}</td>
-                                      <td className="px-4 py-2 text-sm text-right">₹{parseFloat(line.unitPrice).toFixed(2)}</td>
-                                      <td className="px-4 py-2 text-sm text-right">{line.discount || 0}%</td>
-                                      <td className="px-4 py-2 text-sm text-right">{line.taxRate || 0}%</td>
-                                      <td className="px-4 py-2 text-sm text-right font-semibold">
-                                        ₹{(parseFloat(line.quantity) * parseFloat(line.unitPrice) * (1 - parseFloat(line.discount || 0) / 100) * (1 + parseFloat(line.taxRate || 0) / 100)).toFixed(2)}
-                                      </td>
-                                    </tr>
-                                  ))}
+                                  {orderDetails.lines?.map((line: any, idx: number) => {
+                                    const qty = typeof line.quantityOrdered === 'string' ? parseFloat(line.quantityOrdered) : (line.quantityOrdered || 0);
+                                    const price = typeof line.unitPrice === 'string' ? parseFloat(line.unitPrice) : (line.unitPrice || 0);
+                                    const tax = typeof line.taxRate === 'string' ? parseFloat(line.taxRate) : (line.taxRate || 0);
+                                    const lineTotal = qty * price * (1 + tax / 100);
+                                    return (
+                                      <tr key={idx} className="bg-white">
+                                        <td className="px-4 py-2 text-sm">{line.product?.name || 'N/A'}</td>
+                                        <td className="px-4 py-2 text-sm text-right">{qty}</td>
+                                        <td className="px-4 py-2 text-sm text-right">₹{price.toFixed(2)}</td>
+                                        <td className="px-4 py-2 text-sm text-right">{tax}%</td>
+                                        <td className="px-4 py-2 text-sm text-right font-semibold">₹{lineTotal.toFixed(2)}</td>
+                                      </tr>
+                                    );
+                                  })}
                                 </tbody>
                               </table>
                             </div>
+                            
+                            {/* Accept Order Button - Shows Delivery Assignment Modal */}
+                            {(orderDetails.status === 'pending' || orderDetails.status === 'draft' || orderDetails.status === 'confirmed') && !orderDetails.deliveryAssignment && (
+                              <div className="flex justify-end mt-4">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAssignDelivery(orderDetails);
+                                  }}
+                                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                                >
+                                  <Truck className="w-4 h-4" />
+                                  Accept
+                                </button>
+                              </div>
+                            )}
+                            
+                            {/* Delivery Status */}
+                            {orderDetails.deliveryAssignment && (
+                              <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                                      <Truck className="w-5 h-5" />
+                                      Delivery Partner Assigned
+                                    </h4>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                                      <div>
+                                        <span className="text-blue-700">Partner:</span>
+                                        <span className="ml-2 font-medium text-gray-900">{orderDetails.deliveryAssignment.partnerName}</span>
+                                      </div>
+                                      <div>
+                                        <span className="text-blue-700">Mobile:</span>
+                                        <span className="ml-2 font-medium text-gray-900">{orderDetails.deliveryAssignment.partnerMobile}</span>
+                                      </div>
+                                      <div>
+                                        <span className="text-blue-700">Status:</span>
+                                        <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${
+                                          orderDetails.deliveryAssignment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                          orderDetails.deliveryAssignment.status === 'picked_up' ? 'bg-blue-100 text-blue-800' :
+                                          'bg-green-100 text-green-800'
+                                        }`}>
+                                          {orderDetails.deliveryAssignment.status.replace('_', ' ')}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -840,6 +996,19 @@ export default function SalesOrdersPage() {
           </div>
         </div>
       )}
+
+      {/* Delivery Assignment Modal */}
+      <AssignDeliveryModal
+        isOpen={showDeliveryModal}
+        onClose={() => {
+          setShowDeliveryModal(false);
+          setSelectedOrderForDelivery(null);
+        }}
+        onSuccess={handleDeliveryAssignmentSuccess}
+        salesOrder={selectedOrderForDelivery}
+      />
+    </div>
+      </motion.div>
     </div>
   );
 }

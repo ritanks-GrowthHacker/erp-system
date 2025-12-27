@@ -124,8 +124,8 @@ export default function EditPOModal({
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Supplier <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={formData.supplierId}
+               <select
+                  value={formData.supplierId || ''}
                   onChange={(e) => onFormDataChange('supplierId', e.target.value)}
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -144,7 +144,7 @@ export default function EditPOModal({
                   Warehouse <span className="text-red-500">*</span>
                 </label>
                 <select
-                  value={formData.warehouseId}
+                  value={formData.warehouseId || ''}
                   onChange={(e) => onFormDataChange('warehouseId', e.target.value)}
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -164,7 +164,7 @@ export default function EditPOModal({
                 </label>
                 <Input
                   type="date"
-                  value={formData.expectedDeliveryDate}
+                  value={formData.expectedDeliveryDate || ''}
                   onChange={(e) => onFormDataChange('expectedDeliveryDate', e.target.value)}
                   className="w-full"
                 />
@@ -173,7 +173,7 @@ export default function EditPOModal({
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
                 <Textarea
-                  value={formData.notes}
+                  value={formData.notes || ''}
                   onChange={(e) => onFormDataChange('notes', e.target.value)}
                   rows={1}
                   className="w-full"

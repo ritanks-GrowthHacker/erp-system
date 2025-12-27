@@ -34,7 +34,58 @@ export async function GET(req: NextRequest) {
           WHERE p.erp_organization_id = ${user.erpOrganizationId}
         `);
 
+        // Get top customers by delivery value
+        const topCustomers = await erpDb.execute(sql`
+          SELECT 
+            c.id as customer_id,
+            c.name as customer_name,
+            COUNT(DISTINCT so.id) as total_deliveries,
+            COALESCE(SUM(CAST(si.total_amount AS DECIMAL)), 0) as total_value
+          FROM customers c
+          JOIN sales_orders so ON so.customer_id = c.id
+          LEFT JOIN sales_invoices si ON si.sales_order_id = so.id
+          WHERE c.erp_organization_id = ${user.erpOrganizationId}
+          AND so.status = 'delivered'
+          GROUP BY c.id, c.name
+          ORDER BY total_value DESC
+          LIMIT 10
+        `);
+
+        // Get top products
+        const topProducts = await erpDb.execute(sql`
+          SELECT 
+            p.id,
+            p.name,
+            p.sku,
+            COALESCE(SUM(CAST(sl.quantity_on_hand AS DECIMAL)), 0) as total_quantity,
+            COALESCE(SUM(CAST(sl.quantity_on_hand AS DECIMAL) * CAST(p.cost_price AS DECIMAL)), 0) as value
+          FROM products p
+          LEFT JOIN stock_levels sl ON sl.product_id = p.id
+          WHERE p.erp_organization_id = ${user.erpOrganizationId}
+          GROUP BY p.id, p.name, p.sku
+          ORDER BY value DESC
+          LIMIT 20
+        `);
+
+        // Get warehouse stock
+        const warehouseStock = await erpDb.execute(sql`
+          SELECT 
+            w.id as warehouse_id,
+            w.name as warehouse_name,
+            COUNT(DISTINCT sl.product_id) as product_count,
+            COALESCE(SUM(CAST(sl.quantity_on_hand AS DECIMAL)), 0) as total_quantity
+          FROM warehouses w
+          LEFT JOIN stock_levels sl ON sl.warehouse_id = w.id
+          WHERE w.erp_organization_id = ${user.erpOrganizationId}
+          GROUP BY w.id, w.name
+          ORDER BY total_quantity DESC
+          LIMIT 10
+        `);
+
         response.overview = overviewStats[0];
+        response.topCustomers = Array.from(topCustomers);
+        response.topProducts = Array.from(topProducts);
+        response.warehouseStock = Array.from(warehouseStock);
         break;
 
       case 'turnover':

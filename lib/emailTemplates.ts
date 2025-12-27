@@ -587,3 +587,117 @@ export const getQuotationEmailTemplate = (
     </html>
   `;
 };
+
+interface StatementData {
+  customer: {
+    name: string;
+    code: string;
+    email?: string;
+  };
+  invoices: Array<{
+    invoice_number: string;
+    invoice_date: string;
+    due_date?: string;
+    total_amount: string;
+    paid_amount: string;
+    balance_amount: string;
+    status: string;
+  }>;
+  startDate: string;
+  endDate: string;
+  totalInvoiced: number;
+  totalPaid: number;
+  totalOutstanding: number;
+}
+
+export const generateStatementEmail = (data: StatementData): string => {
+  const invoicesHtml = data.invoices.map((inv) => `
+    <tr>
+      <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${inv.invoice_number}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${new Date(inv.invoice_date).toLocaleDateString()}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${inv.due_date ? new Date(inv.due_date).toLocaleDateString() : '-'}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">₹${parseFloat(inv.total_amount).toLocaleString('en-IN')}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">₹${parseFloat(inv.paid_amount || '0').toLocaleString('en-IN')}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">₹${parseFloat(inv.balance_amount || '0').toLocaleString('en-IN')}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">
+        <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; background-color: ${inv.status === 'paid' ? '#d1fae5' : inv.status === 'overdue' ? '#fee2e2' : '#dbeafe'}; color: ${inv.status === 'paid' ? '#065f46' : inv.status === 'overdue' ? '#991b1b' : '#1e40af'};">
+          ${inv.status.toUpperCase()}
+        </span>
+      </td>
+    </tr>
+  `).join('');
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Account Statement</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
+      <div style="background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+        <!-- Header -->
+        <div style="background-color: #1f2937; color: white; padding: 30px; text-align: center;">
+          <h1 style="margin: 0; font-size: 28px;">Account Statement</h1>
+          <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;">For the period: ${data.startDate} to ${data.endDate}</p>
+        </div>
+
+        <!-- Customer Info -->
+        <div style="padding: 30px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+          <h2 style="margin: 0 0 15px 0; color: #1f2937; font-size: 18px;">Customer Information</h2>
+          <p style="margin: 5px 0;"><strong>Name:</strong> ${data.customer.name}</p>
+          <p style="margin: 5px 0;"><strong>Code:</strong> ${data.customer.code}</p>
+          ${data.customer.email ? `<p style="margin: 5px 0;"><strong>Email:</strong> ${data.customer.email}</p>` : ''}
+        </div>
+
+        <!-- Summary -->
+        <div style="padding: 30px;">
+          <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 18px;">Summary</h2>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px;">
+            <div style="background-color: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #dbeafe;">
+              <p style="margin: 0; color: #1e40af; font-size: 12px; text-transform: uppercase; font-weight: 600;">Total Invoiced</p>
+              <p style="margin: 5px 0 0 0; color: #1e3a8a; font-size: 24px; font-weight: bold;">₹${data.totalInvoiced.toLocaleString('en-IN')}</p>
+            </div>
+            <div style="background-color: #d1fae5; padding: 15px; border-radius: 8px; border: 1px solid #a7f3d0;">
+              <p style="margin: 0; color: #065f46; font-size: 12px; text-transform: uppercase; font-weight: 600;">Total Paid</p>
+              <p style="margin: 5px 0 0 0; color: #064e3b; font-size: 24px; font-weight: bold;">₹${data.totalPaid.toLocaleString('en-IN')}</p>
+            </div>
+            <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; border: 1px solid #fde68a;">
+              <p style="margin: 0; color: #92400e; font-size: 12px; text-transform: uppercase; font-weight: 600;">Outstanding</p>
+              <p style="margin: 5px 0 0 0; color: #78350f; font-size: 24px; font-weight: bold;">₹${data.totalOutstanding.toLocaleString('en-IN')}</p>
+            </div>
+          </div>
+
+          <!-- Invoice Table -->
+          <h2 style="margin: 0 0 15px 0; color: #1f2937; font-size: 18px;">Invoice Details</h2>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+              <tr style="background-color: #f9fafb;">
+                <th style="padding: 12px 10px; text-align: left; border-bottom: 2px solid #e5e7eb; color: #374151; font-weight: 600;">Invoice #</th>
+                <th style="padding: 12px 10px; text-align: left; border-bottom: 2px solid #e5e7eb; color: #374151; font-weight: 600;">Date</th>
+                <th style="padding: 12px 10px; text-align: left; border-bottom: 2px solid #e5e7eb; color: #374151; font-weight: 600;">Due Date</th>
+                <th style="padding: 12px 10px; text-align: right; border-bottom: 2px solid #e5e7eb; color: #374151; font-weight: 600;">Amount</th>
+                <th style="padding: 12px 10px; text-align: right; border-bottom: 2px solid #e5e7eb; color: #374151; font-weight: 600;">Paid</th>
+                <th style="padding: 12px 10px; text-align: right; border-bottom: 2px solid #e5e7eb; color: #374151; font-weight: 600;">Balance</th>
+                <th style="padding: 12px 10px; text-align: left; border-bottom: 2px solid #e5e7eb; color: #374151; font-weight: 600;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${invoicesHtml}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Footer -->
+        <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+          <p style="margin: 0; color: #6b7280; font-size: 12px;">
+            This is an automated statement. Please contact us if you have any questions.
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+};
+

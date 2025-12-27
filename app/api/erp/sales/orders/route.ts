@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
       orderBy: [desc(salesOrders.createdAt)],
     });
 
-    return NextResponse.json({ salesOrders: orders });
+    return NextResponse.json({ orders: orders, salesOrders: orders });
   } catch (error: any) {
     logDatabaseError('Fetching sales orders', error);
     const dbError = handleDatabaseError(error);

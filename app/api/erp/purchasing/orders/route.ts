@@ -76,9 +76,10 @@ export async function POST(req: NextRequest) {
       lines,
     } = body;
 
-    if (!supplierId || !warehouseId || !lines || lines.length === 0) {
+    // For draft POs without supplier, allow creation
+    if (!lines || lines.length === 0) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'At least one line item is required' },
         { status: 400 }
       );
     }
@@ -96,9 +97,13 @@ export async function POST(req: NextRequest) {
     let taxAmount = 0;
 
     for (const line of lines) {
-      const lineTotal = parseFloat(line.quantity) * parseFloat(line.unitPrice);
+      const quantity = parseFloat(line.quantity || line.quantityOrdered || 0);
+      const unitPrice = parseFloat(line.unitPrice || 0);
+      const taxRate = parseFloat(line.taxRate || 0);
+      
+      const lineTotal = quantity * unitPrice;
       subtotal += lineTotal;
-      taxAmount += lineTotal * (parseFloat(line.taxRate || 0) / 100);
+      taxAmount += lineTotal * (taxRate / 100);
     }
 
     // Create purchase order
@@ -106,8 +111,8 @@ export async function POST(req: NextRequest) {
       .insert(purchaseOrders)
       .values({
         erpOrganizationId: user.erpOrganizationId,
-        supplierId,
-        warehouseId,
+        supplierId: supplierId || null,
+        warehouseId: warehouseId || null,
         poNumber,
         expectedDeliveryDate: expectedDeliveryDate || null,
         status: 'draft',

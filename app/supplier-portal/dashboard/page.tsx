@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAlert } from '@/components/common/CustomAlert';
 import QuotationViewModal from '@/components/modal/QuotationViewModal';
 import { ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface SupplierData {
   id: string;
@@ -21,9 +22,12 @@ export default function SupplierDashboard() {
   const { showAlert } = useAlert();
   const [supplier, setSupplier] = useState<SupplierData | null>(null);
   const [quotations, setQuotations] = useState<any[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [posLoading, setPosLoading] = useState(true);
   const [invoicesLoading, setInvoicesLoading] = useState(true);
+  const [showLoader, setShowLoader] = useState(true);
   const [showQuotationModal, setShowQuotationModal] = useState(false);
   const [selectedQuotation, setSelectedQuotation] = useState<any>(null);
   const [expandedInvoiceRows, setExpandedInvoiceRows] = useState<string | null>(null);
@@ -36,6 +40,8 @@ export default function SupplierDashboard() {
   const [receiptStatuses, setReceiptStatuses] = useState<Record<string, { hasReceipt: boolean; receiptId?: string }>>({});
 
   useEffect(() => {
+    const timer = setTimeout(() => setShowLoader(false), 4000);
+    
     // Check authentication
     const token = localStorage.getItem('supplierToken');
     const supplierData = localStorage.getItem('supplierData');
@@ -47,7 +53,10 @@ export default function SupplierDashboard() {
 
     setSupplier(JSON.parse(supplierData));
     fetchQuotations(token);
+    fetchPurchaseOrders(token);
     fetchInvoices(token);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   const fetchQuotations = async (token: string) => {
@@ -66,6 +75,26 @@ export default function SupplierDashboard() {
       console.error('Error fetching quotations:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPurchaseOrders = async (token: string) => {
+    try {
+      setPosLoading(true);
+      const response = await fetch('/api/supplier-portal/purchase-orders', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPurchaseOrders(data.purchaseOrders || []);
+      }
+    } catch (error) {
+      console.error('Error fetching purchase orders:', error);
+    } finally {
+      setPosLoading(false);
     }
   };
 
@@ -163,6 +192,85 @@ export default function SupplierDashboard() {
   }
 
   return (
+    <>
+      <AnimatePresence>
+        {showLoader && (
+          <motion.div
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.5 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-600"
+          >
+            <div className="text-center">
+              <motion.div
+                initial={{ scale: 0, y: 50 }}
+                animate={{ scale: 1, y: 0 }}
+                transition={{ type: "spring", stiffness: 150, damping: 15 }}
+                className="mb-6"
+              >
+                <div className="w-28 h-28 bg-white rounded-3xl shadow-2xl flex items-center justify-center mx-auto">
+                  <motion.span
+                    animate={{ 
+                      rotate: [0, 10, -10, 0],
+                      scale: [1, 1.1, 1]
+                    }}
+                    transition={{ 
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                    className="text-5xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent"
+                  >
+                    SP
+                  </motion.span>
+                </div>
+              </motion.div>
+              <motion.h1
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="text-4xl font-bold text-white mb-2"
+              >
+                Supplier Portal
+              </motion.h1>
+              <motion.p
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="text-white/80 mb-6"
+              >
+                {supplier?.name || 'Loading...'}
+              </motion.p>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.7 }}
+                className="flex justify-center gap-2"
+              >
+                {[0, 1, 2].map((i) => (
+                  <motion.div
+                    key={i}
+                    animate={{ y: [0, -15, 0] }}
+                    transition={{
+                      duration: 0.6,
+                      repeat: Infinity,
+                      delay: i * 0.15,
+                    }}
+                    className="w-2.5 h-2.5 bg-white rounded-full"
+                  />
+                ))}
+              </motion.div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: showLoader ? 0 : 1 }}
+        transition={{ duration: 0.5 }}
+        className="min-h-screen bg-gray-50"
+      >
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
@@ -348,6 +456,84 @@ export default function SupplierDashboard() {
           </div>
         </div>
 
+        {/* Purchase Orders Sent to Supplier */}
+        <div className="bg-white rounded-lg border border-gray-200 mb-8">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-xl font-bold text-gray-900">Purchase Orders</h2>
+            <p className="text-sm text-gray-500 mt-1">POs sent to you - Submit quotations against these</p>
+          </div>
+          <div className="overflow-x-auto">
+            {posLoading ? (
+              <div className="text-center py-12 text-gray-500">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent mb-4"></div>
+                <p>Loading purchase orders...</p>
+              </div>
+            ) : purchaseOrders.length === 0 ? (
+              <div className="p-12 text-center">
+                <div className="inline-block p-4 bg-gray-100 rounded-full mb-4">
+                  <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <p className="text-gray-600 mb-4">No purchase orders sent to you yet</p>
+                <p className="text-sm text-gray-500">Purchase orders from the company will appear here</p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">PO Number</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Expected Delivery</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Amount</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Quoted</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {purchaseOrders.map((po: any) => (
+                    <tr key={po.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm font-medium text-blue-600">{po.po_number}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {new Date(po.po_date).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString() : '-'}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-semibold text-gray-900">
+                        ₹{parseFloat(po.total_amount || 0).toLocaleString('en-IN')}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full capitalize ${
+                          po.status === 'sent' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                        }`}>
+                          {po.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {parseInt(po.quotation_count) > 0 ? (
+                          <span className="text-green-600 font-medium">✓ Yes</span>
+                        ) : (
+                          <span className="text-gray-400">Not yet</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        <Link
+                          href={`/supplier-portal/submit-quotation?po_id=${po.id}`}
+                          className="text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          {parseInt(po.quotation_count) > 0 ? 'Submit Another' : 'Submit Quotation'}
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
         {/* Recent Quotations */}
         <div className="bg-white rounded-lg border border-gray-200 mb-8">
           <div className="p-6 border-b border-gray-200">
@@ -375,6 +561,7 @@ export default function SupplierDashboard() {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Submission #</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">PO Reference</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Type</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Amount</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Status</th>
@@ -384,19 +571,26 @@ export default function SupplierDashboard() {
                 <tbody className="divide-y divide-gray-200">
                   {quotations.map((quotation) => (
                     <tr key={quotation.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm font-medium text-blue-600">{quotation.submissionNumber}</td>
+                      <td className="px-6 py-4 text-sm font-medium text-blue-600">{quotation.submission_number || quotation.submissionNumber}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">
-                        {new Date(quotation.submissionDate).toLocaleDateString()}
+                        {new Date(quotation.submission_date || quotation.submissionDate).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {quotation.po_number || quotation.poNumber ? (
+                          <span className="font-medium text-blue-600">{quotation.po_number || quotation.poNumber}</span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900 capitalize">
-                        {quotation.quotationType.replace('_', ' ')}
+                        {(quotation.quotation_type || quotation.quotationType || '').replace('_', ' ')}
                       </td>
                       <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                        {quotation.totalAmount ? `₹${parseFloat(quotation.totalAmount).toLocaleString('en-IN')}` : '-'}
+                        {(quotation.total_amount || quotation.totalAmount) ? `₹${parseFloat(quotation.total_amount || quotation.totalAmount).toLocaleString('en-IN')}` : '-'}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full capitalize ${getStatusColor(quotation.status)}`}>
-                          {quotation.status.replace('_', ' ')}
+                          {(quotation.status || '').replace('_', ' ')}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm">
@@ -1072,5 +1266,7 @@ export default function SupplierDashboard() {
         </div>
       )}
     </div>
+    </motion.div>
+    </>
   );
 }

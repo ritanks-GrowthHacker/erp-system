@@ -88,6 +88,13 @@ export default function PurchasingAnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<string>('all');
+ 
+  // Helper function to safely parse float values
+  const safeParseFloat = (value: string | number | null | undefined, defaultValue: number = 0): number => {
+    if (value === null || value === undefined || value === '') return defaultValue;
+    const parsed = typeof value === 'number' ? value : parseFloat(value);
+    return isNaN(parsed) ? defaultValue : parsed;
+  };
 
   useEffect(() => {
     fetchAnalytics();
@@ -169,12 +176,24 @@ export default function PurchasingAnalyticsPage() {
     );
   }
 
-  const completionRate = analytics.poSummary.total_purchase_orders
-    ? (parseFloat(analytics.poSummary.received_count) / parseFloat(analytics.poSummary.total_purchase_orders)) * 100
+  const totalNonDraftPOs = safeParseFloat(analytics.poSummary.total_purchase_orders) - safeParseFloat(analytics.poSummary.draft_count);
+  const receivedAndPartialCount = safeParseFloat(analytics.poSummary.received_count) + safeParseFloat(analytics.poSummary.partially_received_count);
+  const completionRate = totalNonDraftPOs > 0
+    ? (receivedAndPartialCount / totalNonDraftPOs) * 100
     : 0;
 
-  const paymentRate = analytics.invoiceSummary.total_invoices && parseFloat(analytics.invoiceSummary.total_invoices) > 0
-    ? (parseFloat(analytics.invoiceSummary.paid_count || '0') / parseFloat(analytics.invoiceSummary.total_invoices)) * 100
+  console.log('Completion Rate Calculation:', {
+    totalPOs: analytics.poSummary.total_purchase_orders,
+    draftCount: analytics.poSummary.draft_count,
+    receivedCount: analytics.poSummary.received_count,
+    partiallyReceivedCount: analytics.poSummary.partially_received_count,
+    totalNonDraft: totalNonDraftPOs,
+    receivedAndPartial: receivedAndPartialCount,
+    completionRate
+  });
+
+  const paymentRate = safeParseFloat(analytics.invoiceSummary.total_invoices) > 0
+    ? (safeParseFloat(analytics.invoiceSummary.paid_count) / safeParseFloat(analytics.invoiceSummary.total_invoices)) * 100
     : 0;
 
   return (
@@ -262,26 +281,36 @@ export default function PurchasingAnalyticsPage() {
       {/* Financial Overview */}
       <div>
         <h2 className="text-xl font-semibold mb-4">Financial Overview</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white border border-gray-200 rounded-lg p-6">
             <div className="text-3xl font-bold text-blue-600">
-              ₹{parseFloat(analytics.poSummary.total_purchase_value || '0').toLocaleString('en-IN')}
+              ₹{safeParseFloat(analytics.poSummary.total_purchase_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <p className="text-sm text-gray-600">Total Purchase Value</p>
           </div>
 
           <div className="bg-white border border-gray-200 rounded-lg p-6">
             <div className="text-3xl font-bold text-yellow-600">
-              ₹{parseFloat(analytics.poSummary.pending_value || '0').toLocaleString('en-IN')}
+              ₹{safeParseFloat(analytics.poSummary.pending_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <p className="text-sm text-gray-600">Pending Orders Value</p>
           </div>
 
           <div className="bg-white border border-gray-200 rounded-lg p-6">
             <div className="text-3xl font-bold text-green-600">
-              ₹{parseFloat(analytics.poSummary.completed_value || '0').toLocaleString('en-IN')}
+              ₹{safeParseFloat(analytics.poSummary.completed_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <p className="text-sm text-gray-600">Completed Orders Value</p>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <div className="text-3xl font-bold text-purple-600">
+              {completionRate.toFixed(1)}%
+            </div>
+            <p className="text-sm text-gray-600">Order Completion Rate</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {analytics.poSummary.received_count} of {totalNonDraftPOs} active orders
+            </p>
           </div>
         </div>
       </div>
@@ -348,6 +377,10 @@ export default function PurchasingAnalyticsPage() {
               <div className="flex justify-between items-center p-3 bg-yellow-50 rounded">
                 <span>In Progress</span>
                 <span className="font-bold text-yellow-600">{analytics.rfqSummary.in_progress_count}</span>
+              </div>
+              <div className="flex justify-between items-center p-3 bg-purple-50 rounded">
+                <span>Closed (Completed)</span>
+                <span className="font-bold text-purple-600">{analytics.rfqSummary.closed_count}</span>
               </div>
               <div className="flex justify-between items-center p-3 bg-green-50 rounded">
                 <span>Received</span>
